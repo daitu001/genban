@@ -1122,65 +1122,15 @@
             <span>←</span> 上门拜访
         </div>
         <div style="padding:12px 16px">
-            <!-- 搜索框 -->
-            <div style="position:relative;margin-bottom:12px">
-                <input id="visitSearch" placeholder="🔍 搜索客户名..." oninput="visitRender()" style="width:100%;padding:12px 16px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:14px;box-sizing:border-box;outline:none">
-            </div>
-            <!-- 拜访过的客户列表（按多久没拜访排序） -->
-            <div id="visitList"></div>
-        </div>
-    </div>
-
-    <!-- 新增拜访弹窗 -->
-    <div class="hd-overlay" id="visitOverlay" onclick="if(event.target===this)visitClose()">
-        <div class="hd-sheet">
-            <div class="hd-title">🏠 上门拜访</div>
-            <div style="background:#f8f9fb;border-radius:12px;padding:12px;margin:10px 0">
-                <div id="visitCustName" style="font-size:16px;font-weight:700;color:#333"></div>
-                <div id="visitCustInfo" style="font-size:12px;color:#999;margin-top:2px"></div>
-            </div>
-            <!-- 上次拜访线索 -->
-            <div id="visitLastWrap" style="display:none;background:#fff8e1;border-radius:10px;padding:10px;margin-bottom:10px">
-                <div id="visitLastLabel" style="font-size:11px;color:#f57c00;font-weight:600;margin-bottom:4px"></div>
-                <div id="visitLastContent" style="font-size:12px;color:#666;line-height:1.5"></div>
-            </div>
-            <div style="margin-bottom:10px">
-                <input id="visitPerson" placeholder="拜访对象（如：阿巴）" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
-                <input id="visitPosition" placeholder="职位（如：设计师）" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box">
-            </div>
-            <textarea id="visitText" class="hd-textarea" placeholder="聊了什么（必填）" oninput="visitCheckInput()"></textarea>
-            <textarea id="visitNext" class="hd-textarea" placeholder="反馈/下一步（选填）" style="min-height:60px;margin-top:8px"></textarea>
-            <div style="margin-top:8px">
-                <div style="font-size:12px;color:#999;margin-bottom:4px">下次计划拜访（选填）</div>
-                <input id="visitNextDate" type="date" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
-            </div>
-            <div class="hd-btns">
-                <button class="hd-btn cancel" onclick="visitClose()">取消</button>
-                <button class="hd-btn ok disabled" id="visitOkBtn" onclick="visitSubmit()">保存</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 拜访详情弹窗（点客户名看上次线索） -->
-    <div class="td-overlay" id="visitDetailOverlay" onclick="if(event.target===this)this.classList.remove('show')">
-        <div class="td-modal">
-            <div class="td-modal-title" id="visitDetailName"></div>
-            <div class="td-modal-sub" id="visitDetailSub"></div>
-            <div id="visitDetailBody"></div>
-            <button class="td-modal-close" onclick="document.getElementById('visitDetailOverlay').classList.remove('show')">关闭</button>
-        </div>
-    </div>
-
-    <!-- 上门拜访页面 -->
-    <div id="visitPage" class="page">
-        <div class="back-header" onclick="showPage('mainPage')">
-            <span>←</span> 上门拜访
-        </div>
-        <div style="padding:12px 16px">
             <div style="margin-bottom:12px">
                 <input id="visitSearch" placeholder="🔍 搜索客户名..." oninput="visitRender()" style="width:100%;padding:12px 16px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:14px;box-sizing:border-box;outline:none">
             </div>
             <div id="visitList"></div>
+            <!-- 全部拜访记录（全员可见） -->
+            <div style="margin-top:20px;padding-top:14px;border-top:2px solid #f0f0f0">
+                <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:10px">📝 全部拜访记录</div>
+                <div id="visitHistoryList"></div>
+            </div>
         </div>
     </div>
 
@@ -1197,8 +1147,14 @@
                 <div id="visitLastContent" style="font-size:12px;color:#666;line-height:1.5"></div>
             </div>
             <div style="margin-bottom:10px">
-                <input id="visitPerson" placeholder="拜访对象（如：阿巴）" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
-                <input id="visitPosition" placeholder="职位（如：设计师）" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box">
+                <input id="visitPerson" placeholder="联系人姓名（如：阿巴）" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
+                <select id="visitPosition" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;background:#fff">
+                    <option value="">选择角色（主事/设计师/采购/其他）</option>
+                    <option value="主事">主事</option>
+                    <option value="设计师">设计师</option>
+                    <option value="采购">采购</option>
+                    <option value="其他">其他</option>
+                </select>
             </div>
             <textarea id="visitText" class="hd-textarea" placeholder="聊了什么（必填）" oninput="visitCheckInput()"></textarea>
             <textarea id="visitNext" class="hd-textarea" placeholder="反馈/下一步（选填）" style="min-height:60px;margin-top:8px"></textarea>
@@ -3805,13 +3761,20 @@
             });
 
             // ---- 渲染 ----
+            // 跟进人显示行（全员可见）
+            const tdFollowLine = (name) => {
+                const last = hdGetLast(name);
+                if (!last) return '';
+                return '<div style="font-size:11px;color:#43a047;margin-top:2px">' + (last.who||'') + (last.contact_role ? '·'+last.contact_role : '') + (last.contact_name ? '·'+last.contact_name : '') + '·' + (last.date||'').slice(5) + '</div>';
+            };
+
             const renderItems = (arr, color, key) => {
                 const showN = tdExpanded[key] ? arr.length : Math.min(arr.length, 5);
                 let h = arr.slice(0, showN).map(x =>
                     '<div class="td-item">' +
                     '<div style="flex:1;min-width:0;cursor:pointer" onclick="tdShowDetail(\''+x.n.replace(/'/g,"\\'")+'\')">' +
                     '<div class="td-name">'+x.n+'</div>' +
-                    '<div class="td-reason">'+x.reason+'</div></div>' +
+                    '<div class="td-reason">'+x.reason+'</div>' + tdFollowLine(x.n) + '</div>' +
                     '<div class="td-days '+color+'" style="cursor:pointer" onclick="tdShowDetail(\''+x.n.replace(/'/g,"\\'")+'\')">'+x.days+'天</div>' +
                     '<div class="td-handover-btn" ontouchstart="event.stopPropagation()" onmousedown="event.stopPropagation()" onclick="event.stopPropagation();event.preventDefault();hdOpen(\''+x.n.replace(/'/g,"\\'")+'\', \''+x.reason.replace(/'/g,"\\'")+'\');return false;">跟进</div></div>'
                 ).join('');
@@ -3947,6 +3910,8 @@
             // 本次输入清空
             document.getElementById('hdText').value = '';
             document.getElementById('hdNext').value = '';
+            document.getElementById('hdContactName').value = '';
+            document.getElementById('hdContactRole').value = '';
             document.querySelectorAll('#hdWayRow .hd-way').forEach(el => el.classList.remove('active'));
             hdCheckInput();
             document.getElementById('hdOverlay').classList.add('show');
@@ -3974,7 +3939,7 @@
             const all = hdGetDone();
             if (!all[hdCurrent.name]) all[hdCurrent.name] = { history: [] };
             if (!all[hdCurrent.name].history) all[hdCurrent.name].history = [];
-            all[hdCurrent.name].history.push({ way: hdWay || '微信', text: v, next: next, date: today, time: time, who: who });
+            all[hdCurrent.name].history.push({ way: hdWay || '微信', text: v, next: next, date: today, time: time, who: who, contact_name: document.getElementById('hdContactName').value.trim(), contact_role: document.getElementById('hdContactRole').value });
             // 标记今日已跟进（待办列表用）
             all[hdCurrent.name].lastDone = { date: today, time: time };
             localStorage.setItem(hdKey(), JSON.stringify(all));
@@ -4131,6 +4096,17 @@
                 <div class="hd-way" data-way="电话" onclick="hdPickWay(this)">📞 电话</div>
                 <div class="hd-way" data-way="微信" onclick="hdPickWay(this)">💬 微信</div>
                 <div class="hd-way" data-way="拜访" onclick="hdPickWay(this)">🚶 拜访</div>
+            </div>
+            <!-- 联系人姓名+角色 -->
+            <div style="display:flex;gap:8px;margin-bottom:10px">
+                <input id="hdContactName" placeholder="联系人姓名" style="flex:1;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;box-sizing:border-box">
+                <select id="hdContactRole" style="width:110px;padding:10px 8px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;box-sizing:border-box;background:#fff">
+                    <option value="">角色</option>
+                    <option value="主事">主事</option>
+                    <option value="设计师">设计师</option>
+                    <option value="采购">采购</option>
+                    <option value="其他">其他</option>
+                </select>
             </div>
             <!-- 聊了什么 -->
             <div style="font-size:11px;color:#888;margin-bottom:4px">聊了什么（必填）：</div>
