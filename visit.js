@@ -1,8 +1,8 @@
 /* ============ 版本更新 ============ */
-var APP_VERSION = 'v20260810-9';
+var APP_VERSION = 'v20260810-10';
 var UPDATE_LOG = [
+    { ver: 'v20260810-10', time: '08-10 21:45', items: ['优先读云端数据', '任何设备打开都是同一份数据', '页面加载自动同步'] },
     { ver: 'v20260810-9', time: '08-10 21:10', items: ['拜访记录云端同步', '电脑填的手机也能看到', '数据实时共享，全员可见'] },
-    { ver: 'v20260810-8', time: '08-10 20:20', items: ['拜访记录加📅今日/📆下次子tab', '今日=今天要拜访的客户（含未排期）', '下次=未来拜访计划，按日期排序', '客户名可点击弹详情'] },
 ];
 function checkUpdate() {
     document.getElementById('updVer').textContent = APP_VERSION;
@@ -328,9 +328,22 @@ function visitSubmit() {
     visitClose(); visitRender(); visitRenderHistory();
 }
 
-// 初始化云开发
+// 初始化云开发并同步数据
 if (typeof cloudInit === 'function') {
     cloudInit();
+    // 延迟1秒后同步数据（等页面加载完）
+    setTimeout(function() {
+        if (typeof cloudSyncVisits === 'function') {
+            cloudSyncVisits().then(function() {
+                // 同步完成后刷新界面
+                if (typeof visitRender === 'function') visitRender();
+                if (typeof visitRenderHistory === 'function') visitRenderHistory();
+            });
+        }
+        if (typeof cloudSyncFollowups === 'function') {
+            cloudSyncFollowups();
+        }
+    }, 1000);
 }
 
 var _origShowPageVisit2 = showPage;

@@ -64,3 +64,76 @@ function cloudLoadFollowups(name) {
     if (name) query = query.where({ name: name });
     return query.orderBy('created_at', 'desc').limit(100).get();
 }
+// 从云端拉取拜访记录并合并到本地
+function cloudSyncVisits() {
+    if (!tcbDb) return Promise.resolve();
+    return cloudLoadVisits().then(function(res) {
+        if (!res || !res.data || !res.data.length) return;
+        var all = hdGetDone();
+        res.data.forEach(function(doc) {
+            var name = doc.name;
+            if (!all[name]) all[name] = { history: [] };
+            if (!all[name].history) all[name].history = [];
+            // 检查是否已存在（避免重复）
+            var exists = all[name].history.some(function(h) {
+                return h.date === doc.date && h.time === doc.time && h.text === doc.text;
+            });
+            if (!exists) {
+                all[name].history.push({
+                    way: '拜访',
+                    text: doc.text,
+                    next: doc.next || '',
+                    date: doc.date,
+                    time: doc.time,
+                    who: doc.who || '',
+                    contact_name: doc.contact_name || '',
+                    contact_role: doc.contact_role || '',
+                    next_visit_date: doc.next_visit_date || ''
+                });
+            }
+            // 更新 lastDone
+            if (!all[name].lastDone || doc.date > all[name].lastDone.date) {
+                all[name].lastDone = { date: doc.date, time: doc.time };
+            }
+        });
+        localStorage.setItem(hdKey(), JSON.stringify(all));
+        console.log('云端同步完成，拉取 ' + res.data.length + ' 条拜访记录');
+    }).catch(function(e) {
+        console.log('云端同步失败', e);
+    });
+}
+
+// 从云端拉取跟进记录并合并到本地
+function cloudSyncFollowups() {
+    if (!tcbDb) return Promise.resolve();
+    return cloudLoadFollowups().then(function(res) {
+        if (!res || !res.data || !res.data.length) return;
+        var all = hdGetDone();
+        res.data.forEach(function(doc) {
+            var name = doc.name;
+            if (!all[name]) all[name] = { history: [] };
+            if (!all[name].history) all[name].history = [];
+            // 检查是否已存在
+            var exists = all[name].history.some(function(h) {
+                return h.date === doc.date && h.time === doc.time && h.text === doc.text;
+            });
+            if (!exists) {
+                all[name].history.push({
+                    way: doc.way || '微信',
+                    text: doc.text,
+                    next: doc.next || '',
+                    date: doc.date,
+                    time: doc.time,
+                    who: doc.who || '',
+                    contact_name: doc.contact_name || '',
+                    contact_role: doc.contact_role || '',
+                    next_visit_date: doc.next_visit_date || ''
+                });
+            }
+        });
+        localStorage.setItem(hdKey(), JSON.stringify(all));
+        console.log('云端同步完成，拉取 ' + res.data.length + ' 条跟进记录');
+    }).catch(function(e) {
+        console.log('云端同步失败', e);
+    });
+}
