@@ -1,8 +1,8 @@
 /* ============ 版本更新 ============ */
-var APP_VERSION = 'v20260810-7';
+var APP_VERSION = 'v20260810-8';
 var UPDATE_LOG = [
+    { ver: 'v20260810-8', time: '08-10 20:20', items: ['拜访记录加📅今日/📆下次子tab', '今日=今天要拜访的客户（含未排期）', '下次=未来拜访计划，按日期排序', '客户名可点击弹详情'] },
     { ver: 'v20260810-7', time: '08-10 19:45', items: ['拜访群体列表显示最近拜访信息（谁·角色·几天）', '没拜访过显示+首次拜访按钮（2秒快速打卡）', '拜访记录区分快速打卡和完整拜访'] },
-    { ver: 'v20260810-6', time: '08-10 19:25', items: ['拜访页顶部加两个tab：拜访群体/拜访记录', '拜访群体：搜索客户→点名字弹浮窗', '拜访记录：全部拜访记录列表'] },
 ];
 function checkUpdate() {
     document.getElementById('updVer').textContent = APP_VERSION;
@@ -60,24 +60,57 @@ function visitRenderHistory() {
     var el = document.getElementById('visitHistoryList');
     if (!el) return;
     var all = hdGetDone();
+    var today = new Date(); today.setHours(0,0,0,0);
+    var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
     var records = [];
     Object.keys(all).forEach(function(name) {
         var hist = (all[name] && all[name].history) || [];
         hist.forEach(function(h) {
             if (h.way === '拜访') {
-                records.push({ name: name, date: h.date, time: h.time, who: h.who, contact_name: h.contact_name, contact_role: h.contact_role, text: h.text, next: h.next, isQuick: h.text === '首次拜访' });
+                records.push({ name: name, date: h.date, time: h.time, who: h.who, contact_name: h.contact_name, contact_role: h.contact_role, text: h.text, next: h.next, next_visit_date: h.next_visit_date, isQuick: h.text === '首次拜访' });
             }
         });
     });
-    records.sort(function(a, b) { return (b.date + (b.time||'')).localeCompare(a.date + (a.time||'')); });
-    if (!records.length) { el.innerHTML = '<div style="text-align:center;color:#bbb;padding:14px;font-size:12px">暂无拜访记录</div>'; return; }
-    el.innerHTML = records.slice(0, 20).map(function(r) {
+    // 按子tab筛选
+    var filtered = [];
+    if (visitSubTab === 'today') {
+        // 今日：next_visit_date=今天 或 没填next_visit_date的（未排期）
+        filtered = records.filter(function(r) {
+            return r.next_visit_date === todayStr || !r.next_visit_date;
+        });
+        // 未排期排最后
+        filtered.sort(function(a, b) {
+            var aHas = a.next_visit_date ? 1 : 0;
+            var bHas = b.next_visit_date ? 1 : 0;
+            if (aHas !== bHas) return bHas - aHas;
+            return (b.date + (b.time||'')).localeCompare(a.date + (a.time||''));
+        });
+    } else {
+        // 下次：next_visit_date > 今天
+        filtered = records.filter(function(r) {
+            return r.next_visit_date && r.next_visit_date > todayStr;
+        });
+        filtered.sort(function(a, b) { return a.next_visit_date.localeCompare(b.next_visit_date); });
+    }
+    if (!filtered.length) {
+        var msg = visitSubTab === 'today' ? '今日暂无安排' : '暂无下次拜访计划';
+        el.innerHTML = '<div style="text-align:center;color:#bbb;padding:14px;font-size:12px">' + msg + '</div>';
+        return;
+    }
+    el.innerHTML = filtered.slice(0, 20).map(function(r) {
         var icon = r.isQuick ? '🏠' : '💬';
         var label = r.isQuick ? '首次拜访' : (r.contact_role ? r.contact_role + '·' : '') + (r.contact_name ? r.contact_name + '·' : '') + (r.text||'').slice(0, 20);
-        return '<div style="padding:10px 0;border-bottom:1px solid #f5f5f5">' +
+        var schedule = '';
+        if (visitSubTab === 'today' && !r.next_visit_date) {
+            schedule = '<div style="font-size:11px;color:#999;margin-top:2px">⚪ 未排期</div>';
+        } else if (visitSubTab === 'next') {
+            schedule = '<div style="font-size:11px;color:#667eea;margin-top:2px">📆 ' + r.next_visit_date + '</div>';
+        }
+        return '<div style="padding:10px 0;border-bottom:1px solid #f5f5f5;cursor:pointer" onclick="visitShowModal(\'' + r.name.replace(/'/g, "\\'") + '\')">' +
             '<div style="font-size:13px;font-weight:600;color:#333">' + r.name + ' <span style="font-size:11px;color:#43a047">' + (r.who||'') + '</span></div>' +
             '<div style="font-size:12px;color:#666;margin-top:2px">' + icon + ' ' + label + '</div>' +
             '<div style="font-size:11px;color:#999;margin-top:2px">' + (r.date||'') + ' ' + (r.time||'') + '</div>' +
+            schedule +
             '</div>';
     }).join('');
 }
@@ -96,6 +129,20 @@ function visitSwitchTab(tab) {
         groupPanel.style.display = 'none'; recordPanel.style.display = 'block';
         visitRenderHistory();
     }
+}
+var visitSubTab = 'today';
+function visitSwitchSubTab(tab) {
+    visitSubTab = tab;
+    var todayEl = document.getElementById('visitSubToday');
+    var nextEl = document.getElementById('visitSubNext');
+    if (tab === 'today') {
+        todayEl.style.background = '#667eea'; todayEl.style.color = '#fff';
+        nextEl.style.background = '#f5f5f5'; nextEl.style.color = '#666';
+    } else {
+        nextEl.style.background = '#667eea'; nextEl.style.color = '#fff';
+        todayEl.style.background = '#f5f5f5'; todayEl.style.color = '#666';
+    }
+    visitRenderHistory();
 }
 function visitRender() {
     var el = document.getElementById('visitList');
@@ -126,7 +173,8 @@ function visitRender() {
     }).join('');
 }
 function visitQuickCheckIn(name) {
-    var today = new Date().toISOString().slice(0,10);
+    var now = new Date();
+    var today = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
     var all = hdGetDone();
     if (!all[name]) all[name] = { history: [] };
     if (!all[name].history) all[name].history = [];
