@@ -1460,6 +1460,19 @@
             localStorage.setItem('login_time_' + name, Date.now());
             if (typeof actLog === 'function') actLog('login', name);
             
+            // 登录后重新过滤数据（确保按角色显示）
+            if (APP_DATA && APP_DATA.groups) {
+                const filterKeys = (name === '灰姑娘' || name === '只只') ? ['灰姑娘', '只只'] : (name === '小杰' || name === '朵丹') ? ['小杰', '朵丹'] : null;
+                if (filterKeys) {
+                    for (const groupKey of Object.keys(APP_DATA.groups)) {
+                        APP_DATA.groups[groupKey] = APP_DATA.groups[groupKey].filter(c =>
+                            filterKeys.some(k => c.salesperson && c.salesperson.includes(k))
+                        );
+                    }
+                    console.log(`登录后已按角色 ${name} 过滤数据`);
+                }
+            }
+            
             // 更新按钮状态
             document.querySelectorAll('.salesperson-btn').forEach(btn => {
                 btn.classList.remove('active');
