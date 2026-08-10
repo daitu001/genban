@@ -1970,6 +1970,19 @@
                 // 加载复版专项数据（含产品列表、排行榜、客户分级）
                 const response = await fetch('https://youyi-01mishu.oss-cn-guangzhou.aliyuncs.com/genban/data/reorder_data.json');
                 APP_DATA = await response.json();
+                
+                // 按当前登录角色过滤客户数据（刘老师看全部）
+                const currentRole = localStorage.getItem('current_salesperson') || '刘老师';
+                if (currentRole !== '刘老师' && APP_DATA.groups) {
+                    const filterKeys = (currentRole === '灰姑娘' || currentRole === '只只') ? ['灰姑娘', '只只'] : ['小杰', '朵丹'];
+                    for (const groupKey of Object.keys(APP_DATA.groups)) {
+                        APP_DATA.groups[groupKey] = APP_DATA.groups[groupKey].filter(c =>
+                            filterKeys.some(k => c.salesperson && c.salesperson.includes(k))
+                        );
+                    }
+                    console.log(`已按角色 ${currentRole} 过滤客户数据`);
+                }
+                
                 console.log('数据加载成功:', Object.keys(APP_DATA));
                 renderProducts();
                 // 如果当前正停在排行榜页，数据到后刷新排行榜
