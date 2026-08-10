@@ -14,7 +14,27 @@ function checkUpdate() {
     }).join('');
     document.getElementById('updateOverlay').classList.add('show');
 }
-function doForceRefresh() { location.href = location.pathname + '?v=' + Date.now(); }
+function doForceRefresh() {
+    var wrap = document.getElementById('updProgressWrap');
+    var bar = document.getElementById('updProgressBar');
+    var text = document.getElementById('updProgressText');
+    var refreshBtn = document.getElementById('updRefreshBtn');
+    var confirmBtn = document.getElementById('updConfirmBtn');
+    if (wrap) wrap.style.display = 'block';
+    if (refreshBtn) refreshBtn.style.display = 'none';
+    var p = 0;
+    var timer = setInterval(function() {
+        p += 10;
+        if (bar) bar.style.width = p + '%';
+        if (text) text.textContent = '正在更新 ' + p + '%';
+        if (p >= 100) {
+            clearInterval(timer);
+            if (text) text.textContent = '更新完成 ✅';
+            if (confirmBtn) confirmBtn.style.display = 'block';
+        }
+    }, 200);
+}
+function doReload() { location.href = location.pathname + '?v=' + Date.now(); }
 
 /* ============ 上门拜访 ============ */
 var visitCurrent = null;

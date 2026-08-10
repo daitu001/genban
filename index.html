@@ -4070,7 +4070,14 @@
             <div class="td-modal-title">🔄 版本更新</div>
             <div class="td-modal-sub">当前版本：<span id="updVer"></span></div>
             <div id="updList" style="max-height:50vh;overflow-y:auto"></div>
-            <button class="td-modal-close" onclick="doForceRefresh()" style="background:#667eea;color:#fff;font-weight:600;margin-bottom:8px">✅ 立即刷新获取最新版</button>
+            <div id="updProgressWrap" style="display:none;margin:14px 0">
+                <div style="background:#f0f0f0;border-radius:8px;height:14px;overflow:hidden">
+                    <div id="updProgressBar" style="background:#667eea;height:100%;width:0%;transition:width .3s"></div>
+                </div>
+                <div id="updProgressText" style="text-align:center;font-size:12px;color:#667eea;margin-top:6px;font-weight:600">正在更新 0%</div>
+            </div>
+            <button class="td-modal-close" id="updRefreshBtn" onclick="doForceRefresh()" style="background:#667eea;color:#fff;font-weight:600;margin-bottom:8px">✅ 立即刷新获取最新版</button>
+            <button class="td-modal-close" id="updConfirmBtn" onclick="doReload()" style="display:none;background:#43a047;color:#fff;font-weight:600;margin-bottom:8px">✅ 确认完成</button>
             <button class="td-modal-close" onclick="document.getElementById('updateOverlay').classList.remove('show')">关闭</button>
         </div>
     </div>
