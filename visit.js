@@ -1,6 +1,7 @@
 /* ============ 版本更新 ============ */
-var APP_VERSION = 'v20260810-6';
+var APP_VERSION = 'v20260810-7';
 var UPDATE_LOG = [
+    { ver: 'v20260810-7', time: '08-10 19:45', items: ['拜访群体列表显示最近拜访信息（谁·角色·几天）', '没拜访过显示+首次拜访按钮（2秒快速打卡）', '拜访记录区分快速打卡和完整拜访'] },
     { ver: 'v20260810-6', time: '08-10 19:25', items: ['拜访页顶部加两个tab：拜访群体/拜访记录', '拜访群体：搜索客户→点名字弹浮窗', '拜访记录：全部拜访记录列表'] },
 ];
 function checkUpdate() {
@@ -52,7 +53,8 @@ function visitGetLast(name) {
 function visitDaysSince(ds) {
     if (!ds) return 999;
     var t = new Date(); t.setHours(0,0,0,0);
-    return Math.floor((t - new Date(ds)) / 86400000);
+    var d = new Date(ds + 'T00:00:00');
+    return Math.floor((t - d) / 86400000);
 }
 function visitRenderHistory() {
     var el = document.getElementById('visitHistoryList');
@@ -63,17 +65,18 @@ function visitRenderHistory() {
         var hist = (all[name] && all[name].history) || [];
         hist.forEach(function(h) {
             if (h.way === '拜访') {
-                records.push({ name: name, date: h.date, time: h.time, who: h.who, contact_name: h.contact_name, contact_role: h.contact_role, text: h.text, next: h.next });
+                records.push({ name: name, date: h.date, time: h.time, who: h.who, contact_name: h.contact_name, contact_role: h.contact_role, text: h.text, next: h.next, isQuick: h.text === '首次拜访' });
             }
         });
     });
     records.sort(function(a, b) { return (b.date + (b.time||'')).localeCompare(a.date + (a.time||'')); });
     if (!records.length) { el.innerHTML = '<div style="text-align:center;color:#bbb;padding:14px;font-size:12px">暂无拜访记录</div>'; return; }
     el.innerHTML = records.slice(0, 20).map(function(r) {
+        var icon = r.isQuick ? '🏠' : '💬';
+        var label = r.isQuick ? '首次拜访' : (r.contact_role ? r.contact_role + '·' : '') + (r.contact_name ? r.contact_name + '·' : '') + (r.text||'').slice(0, 20);
         return '<div style="padding:10px 0;border-bottom:1px solid #f5f5f5">' +
-            '<div style="font-size:13px;font-weight:600;color:#333">' + r.name + ' <span style="font-size:11px;color:#43a047">' + (r.who||'') + (r.contact_role ? '·'+r.contact_role : '') + (r.contact_name ? '·'+r.contact_name : '') + '</span></div>' +
-            '<div style="font-size:12px;color:#666;margin-top:2px">' + (r.text||'') + '</div>' +
-            (r.next ? '<div style="font-size:11px;color:#667eea;margin-top:2px">→ ' + r.next + '</div>' : '') +
+            '<div style="font-size:13px;font-weight:600;color:#333">' + r.name + ' <span style="font-size:11px;color:#43a047">' + (r.who||'') + '</span></div>' +
+            '<div style="font-size:12px;color:#666;margin-top:2px">' + icon + ' ' + label + '</div>' +
             '<div style="font-size:11px;color:#999;margin-top:2px">' + (r.date||'') + ' ' + (r.time||'') + '</div>' +
             '</div>';
     }).join('');
@@ -103,9 +106,39 @@ function visitRender() {
     if (!matched.length) { el.innerHTML = '<div style="text-align:center;color:#bbb;padding:30px">没有匹配的客户</div>'; return; }
     el.innerHTML = matched.map(function(c) {
         var sn = c.name.replace(/'/g, "\\'");
+        var last = visitGetLast(c.name);
+        var info = '';
+        var btn = '';
+        if (last) {
+            var days = visitDaysSince(last.date);
+            var color = days <= 5 ? '#43a047' : '#f57c00';
+            var bg = days <= 5 ? '#e8f5e9' : '#fff3e0';
+            var who = last.contact_name ? last.contact_name : '';
+            var role = last.contact_role ? last.contact_role : '';
+            var label = who ? (role ? who + '·' + role : who) : '首次拜访';
+            info = '<div style="font-size:11px;color:' + color + ';margin-top:3px">🏠 ' + label + '·' + days + '天前</div>';
+        } else {
+            btn = '<div style="background:#667eea;color:#fff;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer" onclick="event.stopPropagation();visitQuickCheckIn(\''+sn+'\')">+首次拜访</div>';
+        }
         return '<div class="td-item" style="cursor:pointer" onclick="visitShowModal(\''+sn+'\')">' +
-            '<div class="td-name">' + c.name + ' <span style="font-size:11px;color:#999">' + c.grade + '</span></div></div>';
+            '<div style="flex:1;min-width:0"><div class="td-name">' + c.name + ' <span style="font-size:11px;color:#999">' + c.grade + '</span></div>' + info + '</div>' +
+            btn + '</div>';
     }).join('');
+}
+function visitQuickCheckIn(name) {
+    var today = new Date().toISOString().slice(0,10);
+    var all = hdGetDone();
+    if (!all[name]) all[name] = { history: [] };
+    if (!all[name].history) all[name].history = [];
+    all[name].history.push({
+        way: '拜访', text: '首次拜访', next: '', date: today,
+        time: new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}),
+        who: localStorage.getItem('current_salesperson') || '',
+        contact_name: '', contact_role: '', next_visit_date: ''
+    });
+    all[name].lastDone = { date: today, time: new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}) };
+    localStorage.setItem(hdKey(), JSON.stringify(all));
+    visitRender();
 }
 function visitShowModal(name) {
     var all = visitAllCustomers();
