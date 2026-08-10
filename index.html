@@ -3649,11 +3649,18 @@
                 return window._tdNewDataCache[n] === true;
             };
 
-            const GRADE_RULES = [
+            // 按角色决定显示哪些 tab：灰姑娘/只只/刘老师看全部；小杰/朵丹只看 A 级（超A/冲超A不归他们管）
+            const _tdRole = localStorage.getItem('current_salesperson') || '刘老师';
+            const _tdShowAll = (_tdRole === '刘老师' || _tdRole === '灰姑娘' || _tdRole === '只只');
+            const GRADE_RULES = _tdShowAll ? [
                 { key:'超A',      icon:'🔴', color:'',       sampleDays:2, cargoDays:5, sub:'超A客户：超2天没剪样 或 超5天没下大货' },
                 { key:'A（冲超A）', icon:'🟠', color:'orange', sampleDays:3, cargoDays:5, sub:'冲超A客户：超3天没剪样 或 超5天没下大货' },
                 { key:'A',        icon:'🟡', color:'yellow', sampleDays:4, cargoDays:7, sub:'A级客户：超4天没剪样 或 超7天没下大货' },
+            ] : [
+                { key:'A',        icon:'🟡', color:'yellow', sampleDays:4, cargoDays:7, sub:'A级客户：超4天没剪样 或 超7天没下大货' },
             ];
+            // 切换角色后 tab 索引可能越界，重置
+            if (typeof window._tdTab !== 'undefined' && window._tdTab >= GRADE_RULES.length) window._tdTab = 0;
 
             const gradeBuckets = GRADE_RULES.map(rule => {
                 const items = (groups[rule.key] || []).map(c => {
