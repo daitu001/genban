@@ -1,6 +1,7 @@
 /* ============ 版本更新 ============ */
-var APP_VERSION = 'v20260810-4';
+var APP_VERSION = 'v20260810-5';
 var UPDATE_LOG = [
+    { ver: 'v20260810-5', time: '08-10 19:05', items: ['拜访页点客户名弹独立浮窗', '浮窗显示：剪样/大货/上次拜访/拜访记录', '浮窗底部可直接填写拜访记录'] },
     { ver: 'v20260810-4', time: '08-10 14:00', items: ['拜访页加全部拜访记录区（全员可见）', '跟进弹窗加联系人姓名+角色', '待办列表显示跟进人+角色+日期'] },
     { ver: 'v20260810-3', time: '08-10 12:40', items: ['新增上门拜访页面', '拜访标签：5天内绿/超5天红', '右上角三横改为更新入口'] },
     { ver: 'v20260810-2', time: '08-10 11:55', items: ['待办按角色分栏'] },
@@ -88,28 +89,16 @@ function visitRender() {
     var all = visitAllCustomers();
     var matched = q ? all.filter(function(c) { return c.name.indexOf(q) >= 0; }) : all;
     if (!matched.length) { el.innerHTML = '<div style="text-align:center;color:#bbb;padding:30px">没有匹配的客户</div>'; return; }
-    // 默认显示第一个客户的详情卡片
-    var first = matched[0];
     el.innerHTML = matched.map(function(c) {
         var sn = c.name.replace(/'/g, "\\'");
-        var isActive = c.name === first.name;
-        return '<div class="td-item" style="cursor:pointer" onclick="visitShowCard(\''+sn+'\')">' +
-            '<div class="td-name">' + c.name + ' <span style="font-size:11px;color:#999">' + c.grade + '</span></div>' +
-            (isActive ? '<div style="font-size:11px;color:#667eea;margin-top:2px">👇 展开中</div>' : '') +
-            '</div>';
+        return '<div class="td-item" style="cursor:pointer" onclick="visitShowModal(\''+sn+'\')">' +
+            '<div class="td-name">' + c.name + ' <span style="font-size:11px;color:#999">' + c.grade + '</span></div></div>';
     }).join('');
-    // 自动展开第一个
-    visitShowCard(first.name);
     visitRenderHistory();
 }
-function visitShowCard(name) {
-    var el = document.getElementById('visitList');
-    if (!el) return;
-    var q = (document.getElementById('visitSearch').value || '').trim();
+function visitShowModal(name) {
     var all = visitAllCustomers();
-    var matched = q ? all.filter(function(c) { return c.name.indexOf(q) >= 0; }) : all;
-    // 找到当前客户
-    var cur = matched.find(function(c) { return c.name === name; });
+    var cur = all.find(function(c) { return c.name === name; });
     if (!cur) return;
     // 从 APP_DATA 取剪样/大货记录
     var samples = (APP_DATA.sample_products || []).filter(function(p) { return p.company === name; }).slice(0, 3);
@@ -117,54 +106,59 @@ function visitShowCard(name) {
     // 上次拜访
     var lastVisit = visitGetLast(name);
     var sn = name.replace(/'/g, "\\'");
-    var html = '<div style="background:#fff;border:2px solid #667eea;border-radius:14px;padding:14px;margin-bottom:10px">';
-    // 客户名+金额+拜访按钮
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
-    html += '<div><span style="font-size:17px;font-weight:700;color:#1a1a1a">' + name + '</span> <span style="font-size:12px;color:#667eea">' + cur.grade + (cur.total_amount ? ' · ¥' + Number(cur.total_amount).toLocaleString() : '') + '</span></div>';
-    html += '<div style="background:#43a047;color:#fff;padding:6px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer" onclick="event.stopPropagation();visitOpen(\''+sn+'\')">+ 拜访</div>';
-    html += '</div>';
-    // 左右两栏：剪样 | 大货
-    html += '<div style="display:flex;border-top:1px solid #f0f0f0;padding-top:10px">';
-    // 左栏：剪样
-    html += '<div style="flex:1;padding-right:10px;border-right:1px solid #f0f0f0">';
-    html += '<div style="font-size:12px;color:#667eea;font-weight:600;margin-bottom:6px">🧵 最近剪样</div>';
+    
+    // 填充浮窗内容
+    document.getElementById('visitModalName').textContent = name;
+    document.getElementById('visitModalGrade').textContent = cur.grade + (cur.total_amount ? ' · ¥' + Number(cur.total_amount).toLocaleString() : '');
+    
+    // 剪样
+    var sampleEl = document.getElementById('visitModalSamples');
     if (samples.length) {
-        samples.forEach(function(s) {
-            html += '<div style="font-size:11px;color:#666;margin-bottom:3px"><span style="color:#999">' + (s.date||'').slice(5) + '</span> ' + (s.style_no||s.product_code||'') + '</div>';
-        });
-    } else { html += '<div style="font-size:11px;color:#bbb">暂无记录</div>'; }
-    html += '</div>';
-    // 右栏：大货
-    html += '<div style="flex:1;padding-left:10px">';
-    html += '<div style="font-size:12px;color:#e65100;font-weight:600;margin-bottom:6px">📦 最近大货</div>';
+        sampleEl.innerHTML = samples.map(function(s) {
+            return '<div style="font-size:11px;color:#666;margin-bottom:3px"><span style="color:#999">' + (s.date||'').slice(5) + '</span> ' + (s.style_no||s.product_code||'') + '</div>';
+        }).join('');
+    } else { sampleEl.innerHTML = '<div style="font-size:11px;color:#bbb">暂无记录</div>'; }
+    
+    // 大货
+    var cargoEl = document.getElementById('visitModalCargos');
     if (cargos.length) {
-        cargos.forEach(function(c) {
-            html += '<div style="font-size:11px;color:#666;margin-bottom:3px"><span style="color:#999">' + (c.date||'').slice(5) + '</span> ' + (c.style_no||c.product_code||'') + '</div>';
-            if (c.meters) html += '<div style="font-size:10px;color:#e65100;margin-left:30px">' + c.meters + '米</div>';
-        });
-    } else { html += '<div style="font-size:11px;color:#bbb">暂无记录</div>'; }
-    html += '</div>';
-    html += '</div>';
+        cargoEl.innerHTML = cargos.map(function(c) {
+            var h = '<div style="font-size:11px;color:#666;margin-bottom:3px"><span style="color:#999">' + (c.date||'').slice(5) + '</span> ' + (c.style_no||c.product_code||'') + '</div>';
+            if (c.meters) h += '<div style="font-size:10px;color:#e65100;margin-left:30px">' + c.meters + '米</div>';
+            return h;
+        }).join('');
+    } else { cargoEl.innerHTML = '<div style="font-size:11px;color:#bbb">暂无记录</div>'; }
+    
     // 上次拜访
+    var lastWrap = document.getElementById('visitModalLastWrap');
     if (lastVisit) {
-        html += '<div style="border-top:1px solid #f0f0f0;padding-top:8px;margin-top:8px">';
-        html += '<div style="font-size:11px;color:#f57c00;font-weight:600;margin-bottom:4px">📌 上次拜访</div>';
-        html += '<div style="font-size:11px;color:#43a047">' + (lastVisit.date||'').slice(5) + ' ' + (lastVisit.who||'') + (lastVisit.contact_role ? '·'+lastVisit.contact_role : '') + (lastVisit.contact_name ? '·'+lastVisit.contact_name : '') + '</div>';
-        html += '<div style="font-size:12px;color:#666;margin-top:2px">' + (lastVisit.text||'') + '</div>';
-        if (lastVisit.next) html += '<div style="font-size:11px;color:#667eea;margin-top:2px">→ ' + lastVisit.next + '</div>';
-        html += '</div>';
-    }
-    // 填写拜访记录按钮
-    html += '<div style="background:#667eea;color:#fff;text-align:center;padding:10px;border-radius:10px;font-size:13px;font-weight:600;margin-top:10px;cursor:pointer" onclick="event.stopPropagation();visitOpen(\''+sn+'\')">填写拜访记录</div>';
-    html += '</div>';
-    // 其他客户列表
-    matched.forEach(function(c) {
-        if (c.name === name) return;
-        var sn2 = c.name.replace(/'/g, "\\'");
-        html += '<div class="td-item" style="cursor:pointer" onclick="visitShowCard(\''+sn2+'\')">' +
-            '<div class="td-name">' + c.name + ' <span style="font-size:11px;color:#999">' + c.grade + '</span></div></div>';
-    });
-    el.innerHTML = html;
+        document.getElementById('visitModalLast').innerHTML = 
+            '<div style="font-size:11px;color:#43a047">' + (lastVisit.date||'').slice(5) + ' ' + (lastVisit.who||'') + (lastVisit.contact_role ? '·'+lastVisit.contact_role : '') + (lastVisit.contact_name ? '·'+lastVisit.contact_name : '') + '</div>' +
+            '<div style="font-size:12px;color:#666;margin-top:2px">' + (lastVisit.text||'') + '</div>' +
+            (lastVisit.next ? '<div style="font-size:11px;color:#667eea;margin-top:2px">→ ' + lastVisit.next + '</div>' : '');
+        lastWrap.style.display = 'block';
+    } else { lastWrap.style.display = 'none'; }
+    
+    // 拜访记录
+    var allRec = hdGetDone();
+    var rec = allRec[name];
+    var visits = (rec && rec.history) ? rec.history.filter(function(h) { return h.way === '拜访'; }) : [];
+    var histEl = document.getElementById('visitModalHistory');
+    if (visits.length) {
+        histEl.innerHTML = visits.slice().reverse().slice(0, 3).map(function(h) {
+            return '<div style="font-size:11px;color:#43a047">' + (h.date||'').slice(5) + ' ' + (h.who||'') + (h.contact_role ? '·'+h.contact_role : '') + (h.contact_name ? '·'+h.contact_name : '') + '</div>' +
+                '<div style="font-size:11px;color:#666;margin:2px 0 6px">' + (h.text||'').slice(0, 30) + '...</div>';
+        }).join('');
+    } else { histEl.innerHTML = '<div style="font-size:11px;color:#bbb">暂无记录</div>'; }
+    
+    // 填写按钮绑定
+    document.getElementById('visitModalFillBtn').onclick = function() { visitCloseModal(); visitOpen(name); };
+    
+    // 显示浮窗
+    document.getElementById('visitModalOverlay').classList.add('show');
+}
+function visitCloseModal() {
+    document.getElementById('visitModalOverlay').classList.remove('show');
 }
 function visitOpen(name) {
     visitCurrent = name;
