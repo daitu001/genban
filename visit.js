@@ -1,6 +1,7 @@
 /* ============ 版本更新 ============ */
-var APP_VERSION = 'v20260810-5';
+var APP_VERSION = 'v20260810-6';
 var UPDATE_LOG = [
+    { ver: 'v20260810-6', time: '08-10 19:25', items: ['拜访页顶部加两个tab：拜访群体/拜访记录', '拜访群体：搜索客户→点名字弹浮窗', '拜访记录：全部拜访记录列表'] },
     { ver: 'v20260810-5', time: '08-10 19:05', items: ['拜访页点客户名弹独立浮窗', '浮窗显示：剪样/大货/上次拜访/拜访记录', '浮窗底部可直接填写拜访记录'] },
     { ver: 'v20260810-4', time: '08-10 14:00', items: ['拜访页加全部拜访记录区（全员可见）', '跟进弹窗加联系人姓名+角色', '待办列表显示跟进人+角色+日期'] },
     { ver: 'v20260810-3', time: '08-10 12:40', items: ['新增上门拜访页面', '拜访标签：5天内绿/超5天红', '右上角三横改为更新入口'] },
@@ -82,6 +83,22 @@ function visitRenderHistory() {
             '</div>';
     }).join('');
 }
+function visitSwitchTab(tab) {
+    var groupTab = document.getElementById('visitTabGroup');
+    var recordTab = document.getElementById('visitTabRecord');
+    var groupPanel = document.getElementById('visitGroupPanel');
+    var recordPanel = document.getElementById('visitRecordPanel');
+    if (tab === 'group') {
+        groupTab.style.background = '#667eea'; groupTab.style.color = '#fff';
+        recordTab.style.background = '#f5f5f5'; recordTab.style.color = '#666';
+        groupPanel.style.display = 'block'; recordPanel.style.display = 'none';
+    } else {
+        recordTab.style.background = '#667eea'; recordTab.style.color = '#fff';
+        groupTab.style.background = '#f5f5f5'; groupTab.style.color = '#666';
+        groupPanel.style.display = 'none'; recordPanel.style.display = 'block';
+        visitRenderHistory();
+    }
+}
 function visitRender() {
     var el = document.getElementById('visitList');
     if (!el) return;
@@ -94,7 +111,6 @@ function visitRender() {
         return '<div class="td-item" style="cursor:pointer" onclick="visitShowModal(\''+sn+'\')">' +
             '<div class="td-name">' + c.name + ' <span style="font-size:11px;color:#999">' + c.grade + '</span></div></div>';
     }).join('');
-    visitRenderHistory();
 }
 function visitShowModal(name) {
     var all = visitAllCustomers();

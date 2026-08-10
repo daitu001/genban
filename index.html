@@ -1121,16 +1121,21 @@
         <div class="back-header" onclick="showPage('mainPage')">
             <span>←</span> 上门拜访
         </div>
-        <div style="padding:12px 16px">
+        <!-- 顶部两个 tab -->
+        <div style="display:flex;gap:8px;padding:12px 16px 0">
+            <div id="visitTabGroup" onclick="visitSwitchTab('group')" style="flex:1;text-align:center;padding:10px;background:#667eea;color:#fff;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">👥 拜访群体</div>
+            <div id="visitTabRecord" onclick="visitSwitchTab('record')" style="flex:1;text-align:center;padding:10px;background:#f5f5f5;color:#666;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">📝 拜访记录</div>
+        </div>
+        <!-- 拜访群体：搜索+客户列表 -->
+        <div id="visitGroupPanel" style="padding:12px 16px">
             <div style="margin-bottom:12px">
                 <input id="visitSearch" placeholder="🔍 搜索客户名..." oninput="visitRender()" style="width:100%;padding:12px 16px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:14px;box-sizing:border-box;outline:none">
             </div>
             <div id="visitList"></div>
-            <!-- 全部拜访记录（全员可见） -->
-            <div style="margin-top:20px;padding-top:14px;border-top:2px solid #f0f0f0">
-                <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:10px">📝 全部拜访记录</div>
-                <div id="visitHistoryList"></div>
-            </div>
+        </div>
+        <!-- 拜访记录：全部拜访记录 -->
+        <div id="visitRecordPanel" style="display:none;padding:12px 16px">
+            <div id="visitHistoryList"></div>
         </div>
     </div>
 
