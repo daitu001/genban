@@ -1,8 +1,8 @@
 /* ============ 版本更新 ============ */
-var APP_VERSION = 'v20260810-8';
+var APP_VERSION = 'v20260810-9';
 var UPDATE_LOG = [
+    { ver: 'v20260810-9', time: '08-10 21:10', items: ['拜访记录云端同步', '电脑填的手机也能看到', '数据实时共享，全员可见'] },
     { ver: 'v20260810-8', time: '08-10 20:20', items: ['拜访记录加📅今日/📆下次子tab', '今日=今天要拜访的客户（含未排期）', '下次=未来拜访计划，按日期排序', '客户名可点击弹详情'] },
-    { ver: 'v20260810-7', time: '08-10 19:45', items: ['拜访群体列表显示最近拜访信息（谁·角色·几天）', '没拜访过显示+首次拜访按钮（2秒快速打卡）', '拜访记录区分快速打卡和完整拜访'] },
 ];
 function checkUpdate() {
     document.getElementById('updVer').textContent = APP_VERSION;
@@ -186,6 +186,19 @@ function visitQuickCheckIn(name) {
     });
     all[name].lastDone = { date: today, time: new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}) };
     localStorage.setItem(hdKey(), JSON.stringify(all));
+    // 云端同步
+    if (typeof cloudSaveVisit === 'function') {
+        cloudSaveVisit(name, {
+            date: today,
+            time: new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}),
+            who: localStorage.getItem('current_salesperson') || '',
+            contact_name: '',
+            contact_role: '',
+            text: '首次拜访',
+            next: '',
+            next_visit_date: ''
+        }).catch(function(e) { console.log('云端保存失败', e); });
+    }
     visitRender();
 }
 function visitShowModal(name) {
@@ -299,7 +312,25 @@ function visitSubmit() {
     });
     all[visitCurrent].lastDone = { date: new Date().toISOString().slice(0,10), time: new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}) };
     localStorage.setItem(hdKey(), JSON.stringify(all));
+    // 云端同步
+    if (typeof cloudSaveVisit === 'function') {
+        cloudSaveVisit(visitCurrent, {
+            date: new Date().toISOString().slice(0,10),
+            time: new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}),
+            who: localStorage.getItem('current_salesperson') || '',
+            contact_name: document.getElementById('visitPerson').value.trim(),
+            contact_role: document.getElementById('visitPosition').value.trim(),
+            text: v,
+            next: document.getElementById('visitNext').value.trim(),
+            next_visit_date: document.getElementById('visitNextDate').value
+        }).catch(function(e) { console.log('云端保存失败', e); });
+    }
     visitClose(); visitRender(); visitRenderHistory();
+}
+
+// 初始化云开发
+if (typeof cloudInit === 'function') {
+    cloudInit();
 }
 
 var _origShowPageVisit2 = showPage;
