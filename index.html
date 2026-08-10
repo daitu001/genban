@@ -865,7 +865,7 @@
                 </svg>
             </div>
             <div class="title">友谊纺跟单通</div>
-            <div class="icon-btn">
+            <div class="icon-btn" onclick="checkUpdate()" title="更新版本">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="#666">
                     <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
                 </svg>
@@ -3943,6 +3943,32 @@
                 }).join('') + '</div>';
         }
 
+        /* ============ 版本更新 ============ */
+        // 每次发布新版本时，更新版本号 + 在最前面加更新说明
+        const APP_VERSION = 'v20260810-3';
+        const UPDATE_LOG = [
+            { ver: 'v20260810-3', time: '08-10 12:40', items: ['新增"上门拜访"页面：搜索客户、记录拜访对象/职位/内容、查看历史拜访', '拜访标签：5天内绿色，超5天红色提醒', '右上角三横按钮改为"更新版本"入口'] },
+            { ver: 'v20260810-2', time: '08-10 11:55', items: ['今日待办按角色分栏：灰姑娘/只只看超A+冲超A，小杰/朵丹看A+B+C，刘老师看全部'] },
+            { ver: 'v20260810-1', time: '08-10 11:10', items: ['系统迁移到 GitHub Pages，解决下载打不开问题', '主屏幕图标换成财神'] },
+        ];
+
+        function checkUpdate() {
+            document.getElementById('updVer').textContent = APP_VERSION;
+            document.getElementById('updList').innerHTML = UPDATE_LOG.map(u =>
+                '<div class="td-modal-row">' +
+                '<div class="lbl">' + u.ver + '（' + u.time + '）</div>' +
+                u.items.map(it => '<div class="val" style="font-weight:400;padding:2px 0">· ' + it + '</div>').join('') +
+                '</div>'
+            ).join('');
+            document.getElementById('updateOverlay').classList.add('show');
+        }
+
+        // 强制刷新：加时间戳参数绕过缓存
+        function doForceRefresh() {
+            const url = location.pathname + '?v=' + Date.now();
+            location.href = url;
+        }
+
         /* ============ 上门拜访 ============ */
         let visitCurrent = null;
 
@@ -4216,6 +4242,17 @@
             if (id === 'overviewPage') { renderOverview(); }
         };
 </script>
+
+    <!-- 更新版本弹窗 -->
+    <div class="td-overlay" id="updateOverlay" onclick="if(event.target===this)this.classList.remove('show')">
+        <div class="td-modal">
+            <div class="td-modal-title">🔄 版本更新</div>
+            <div class="td-modal-sub">当前版本：<span id="updVer"></span></div>
+            <div id="updList" style="max-height:50vh;overflow-y:auto"></div>
+            <button class="td-modal-close" onclick="doForceRefresh()" style="background:#667eea;color:#fff;font-weight:600;margin-bottom:8px">✅ 立即刷新获取最新版</button>
+            <button class="td-modal-close" onclick="document.getElementById('updateOverlay').classList.remove('show')">关闭</button>
+        </div>
+    </div>
 
     <!-- 交接弹窗 -->
     <div class="hd-overlay" id="hdOverlay" onclick="if(event.target===this)hdClose()">
