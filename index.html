@@ -1171,6 +1171,58 @@
         </div>
     </div>
 
+    <!-- 上门拜访页面 -->
+    <div id="visitPage" class="page">
+        <div class="back-header" onclick="showPage('mainPage')">
+            <span>←</span> 上门拜访
+        </div>
+        <div style="padding:12px 16px">
+            <div style="margin-bottom:12px">
+                <input id="visitSearch" placeholder="🔍 搜索客户名..." oninput="visitRender()" style="width:100%;padding:12px 16px;border:1.5px solid #e0e0e0;border-radius:12px;font-size:14px;box-sizing:border-box;outline:none">
+            </div>
+            <div id="visitList"></div>
+        </div>
+    </div>
+
+    <!-- 新增拜访弹窗 -->
+    <div class="hd-overlay" id="visitOverlay" onclick="if(event.target===this)visitClose()">
+        <div class="hd-sheet">
+            <div class="hd-title">🏠 上门拜访</div>
+            <div style="background:#f8f9fb;border-radius:12px;padding:12px;margin:10px 0">
+                <div id="visitCustName" style="font-size:16px;font-weight:700;color:#333"></div>
+                <div id="visitCustInfo" style="font-size:12px;color:#999;margin-top:2px"></div>
+            </div>
+            <div id="visitLastWrap" style="display:none;background:#fff8e1;border-radius:10px;padding:10px;margin-bottom:10px">
+                <div id="visitLastLabel" style="font-size:11px;color:#f57c00;font-weight:600;margin-bottom:4px"></div>
+                <div id="visitLastContent" style="font-size:12px;color:#666;line-height:1.5"></div>
+            </div>
+            <div style="margin-bottom:10px">
+                <input id="visitPerson" placeholder="拜访对象（如：阿巴）" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:8px">
+                <input id="visitPosition" placeholder="职位（如：设计师）" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box">
+            </div>
+            <textarea id="visitText" class="hd-textarea" placeholder="聊了什么（必填）" oninput="visitCheckInput()"></textarea>
+            <textarea id="visitNext" class="hd-textarea" placeholder="反馈/下一步（选填）" style="min-height:60px;margin-top:8px"></textarea>
+            <div style="margin-top:8px">
+                <div style="font-size:12px;color:#999;margin-bottom:4px">下次计划拜访（选填）</div>
+                <input id="visitNextDate" type="date" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;box-sizing:border-box;outline:none">
+            </div>
+            <div class="hd-btns">
+                <button class="hd-btn cancel" onclick="visitClose()">取消</button>
+                <button class="hd-btn ok disabled" id="visitOkBtn" onclick="visitSubmit()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 拜访详情弹窗 -->
+    <div class="td-overlay" id="visitDetailOverlay" onclick="if(event.target===this)this.classList.remove('show')">
+        <div class="td-modal">
+            <div class="td-modal-title" id="visitDetailName"></div>
+            <div class="td-modal-sub" id="visitDetailSub"></div>
+            <div id="visitDetailBody"></div>
+            <button class="td-modal-close" onclick="document.getElementById('visitDetailOverlay').classList.remove('show')">关闭</button>
+        </div>
+    </div>
+
     <div id="overviewPage" class="page">
         <div class="back-header" onclick="showPage('mainPage')">
             <div class="back-icon">
@@ -3943,202 +3995,6 @@
                 }).join('') + '</div>';
         }
 
-        /* ============ 版本更新 ============ */
-        // 每次发布新版本时，更新版本号 + 在最前面加更新说明
-        const APP_VERSION = 'v20260810-3';
-        const UPDATE_LOG = [
-            { ver: 'v20260810-3', time: '08-10 12:40', items: ['新增"上门拜访"页面：搜索客户、记录拜访对象/职位/内容、查看历史拜访', '拜访标签：5天内绿色，超5天红色提醒', '右上角三横按钮改为"更新版本"入口'] },
-            { ver: 'v20260810-2', time: '08-10 11:55', items: ['今日待办按角色分栏：灰姑娘/只只看超A+冲超A，小杰/朵丹看A+B+C，刘老师看全部'] },
-            { ver: 'v20260810-1', time: '08-10 11:10', items: ['系统迁移到 GitHub Pages，解决下载打不开问题', '主屏幕图标换成财神'] },
-        ];
-
-        function checkUpdate() {
-            document.getElementById('updVer').textContent = APP_VERSION;
-            document.getElementById('updList').innerHTML = UPDATE_LOG.map(u =>
-                '<div class="td-modal-row">' +
-                '<div class="lbl">' + u.ver + '（' + u.time + '）</div>' +
-                u.items.map(it => '<div class="val" style="font-weight:400;padding:2px 0">· ' + it + '</div>').join('') +
-                '</div>'
-            ).join('');
-            document.getElementById('updateOverlay').classList.add('show');
-        }
-
-        // 强制刷新：加时间戳参数绕过缓存
-        function doForceRefresh() {
-            const url = location.pathname + '?v=' + Date.now();
-            location.href = url;
-        }
-
-        /* ============ 上门拜访 ============ */
-        let visitCurrent = null;
-
-        // 所有客户列表（从 groups 合并，带等级信息）
-        function visitAllCustomers() {
-            const groups = (APP_DATA && APP_DATA.groups) || {};
-            const out = [];
-            for (const g of Object.keys(groups)) {
-                (groups[g] || []).forEach(c => out.push({ name: c.company, grade: g, amount: c.total_amount || 0 }));
-            }
-            return out;
-        }
-
-        // 取该客户最近一次拜访记录（way=拜访）
-        function visitGetLast(name) {
-            const all = hdGetDone();
-            const rec = all[name];
-            if (!rec || !rec.history) return null;
-            const visits = rec.history.filter(h => h.way === '拜访');
-            return visits.length ? visits[visits.length - 1] : null;
-        }
-
-        // 距今天数
-        function visitDaysSince(ds) {
-            if (!ds) return 999;
-            const today = new Date(); today.setHours(0,0,0,0);
-            return Math.floor((today - new Date(ds)) / 86400000);
-        }
-
-        // 渲染拜访列表
-        function visitRender() {
-            const el = document.getElementById('visitList');
-            if (!el) return;
-            const q = (document.getElementById('visitSearch').value || '').trim();
-            const all = visitAllCustomers();
-            // 搜索过滤
-            const matched = q ? all.filter(c => c.name.toLowerCase().includes(q.toLowerCase())) : all;
-            // 每个客户取最近拜访
-            const withVisit = matched.map(c => {
-                const last = visitGetLast(c.name);
-                const days = last ? visitDaysSince(last.date) : null;
-                return { ...c, last, days };
-            });
-            // 排序：拜访过的在前（按天数倒序=最久没拜访排前），没拜访过的在后（按等级排）
-            const visited = withVisit.filter(c => c.last).sort((a, b) => b.days - a.days);
-            const notVisited = withVisit.filter(c => !c.last);
-            const sorted = visited.concat(notVisited);
-
-            if (!sorted.length) {
-                el.innerHTML = '<div style="text-align:center;color:#bbb;padding:30px;font-size:13px">没有匹配的客户</div>';
-                return;
-            }
-
-            el.innerHTML = sorted.map(c => {
-                let tag = '';
-                if (c.last) {
-                    const color = c.days <= 5 ? '#43a047' : '#e53935';
-                    const bg = c.days <= 5 ? '#e8f5e9' : '#ffebee';
-                    tag = '<span style="font-size:11px;padding:3px 8px;border-radius:10px;background:'+bg+';color:'+color+';font-weight:600">🏠 '+c.days+'天没拜访</span>';
-                } else {
-                    tag = '<span style="font-size:11px;padding:3px 8px;border-radius:10px;background:#f5f5f5;color:#999">未拜访</span>';
-                }
-                const gradeTxt = c.grade.replace('A（冲超A）','冲超A');
-                return '<div class="td-item" style="border-bottom:1px solid #f5f5f5">' +
-                    '<div style="flex:1;min-width:0;cursor:pointer" onclick="visitShowDetail(\''+c.name.replace(/'/g,"\\'")+'\')">' +
-                    '<div class="td-name">'+c.name+' <span style="font-size:11px;color:#999;font-weight:400">'+gradeTxt+'</span></div>' +
-                    '<div style="margin-top:3px">'+tag+'</div></div>' +
-                    '<div class="td-handover-btn" onclick="event.stopPropagation();visitOpen(\''+c.name.replace(/'/g,"\\'")+'\')">+ 拜访</div>' +
-                    '</div>';
-            }).join('');
-        }
-
-        // 打开新增拜访弹窗
-        function visitOpen(name) {
-            visitCurrent = name;
-            document.getElementById('visitCustName').textContent = name;
-            // 等级/金额
-            const groups = (APP_DATA && APP_DATA.groups) || {};
-            let info = '';
-            for (const g of Object.keys(groups)) {
-                const found = (groups[g]||[]).find(c => c.company === name);
-                if (found) { info = g.replace('A（冲超A）','冲超A') + (found.total_amount ? ' · ¥' + Number(found.total_amount).toLocaleString() : ''); break; }
-            }
-            document.getElementById('visitCustInfo').textContent = info;
-            // 上次拜访线索
-            const last = visitGetLast(name);
-            const wrap = document.getElementById('visitLastWrap');
-            if (last) {
-                const days = visitDaysSince(last.date);
-                document.getElementById('visitLastLabel').textContent = '📌 上次拜访（' + (last.date||'') + ' · ' + days + '天前' + (last.who ? ' · ' + last.who : '') + '）';
-                let html = '';
-                if (last.visit_person) html += '👤 ' + last.visit_person + (last.visit_position ? '（' + last.visit_position + '）' : '') + '<br>';
-                html += '💬 ' + (last.text || '');
-                if (last.next) html += '<br>→ 反馈：' + last.next;
-                document.getElementById('visitLastContent').innerHTML = html;
-                wrap.style.display = 'block';
-            } else {
-                wrap.style.display = 'none';
-            }
-            // 清空输入
-            document.getElementById('visitPerson').value = '';
-            document.getElementById('visitPosition').value = '';
-            document.getElementById('visitText').value = '';
-            document.getElementById('visitNext').value = '';
-            document.getElementById('visitNextDate').value = '';
-            visitCheckInput();
-            document.getElementById('visitOverlay').classList.add('show');
-        }
-        function visitClose() {
-            document.getElementById('visitOverlay').classList.remove('show');
-            visitCurrent = null;
-        }
-        function visitCheckInput() {
-            const v = document.getElementById('visitText').value.trim();
-            document.getElementById('visitOkBtn').className = 'hd-btn ok' + (v ? '' : ' disabled');
-        }
-        function visitSubmit() {
-            const v = document.getElementById('visitText').value.trim();
-            if (!v) { alert('必填：聊了什么'); return; }
-            const person = document.getElementById('visitPerson').value.trim();
-            const position = document.getElementById('visitPosition').value.trim();
-            const next = document.getElementById('visitNext').value.trim();
-            const nextDate = document.getElementById('visitNextDate').value;
-            const today = new Date().toISOString().slice(0,10);
-            const time = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'});
-            const who = localStorage.getItem('current_salesperson') || '';
-            const all = hdGetDone();
-            if (!all[visitCurrent]) all[visitCurrent] = { history: [] };
-            if (!all[visitCurrent].history) all[visitCurrent].history = [];
-            all[visitCurrent].history.push({
-                way: '拜访', text: v, next: next, date: today, time: time, who: who,
-                visit_person: person, visit_position: position, next_visit_date: nextDate
-            });
-            all[visitCurrent].lastDone = { date: today, time: time };
-            localStorage.setItem(hdKey(), JSON.stringify(all));
-            visitClose();
-            visitRender();
-        }
-
-        // 点客户名：显示拜访历史
-        function visitShowDetail(name) {
-            const all = hdGetDone();
-            const rec = all[name];
-            const visits = (rec && rec.history) ? rec.history.filter(h => h.way === '拜访') : [];
-            document.getElementById('visitDetailName').textContent = name;
-            document.getElementById('visitDetailSub').textContent = '共 ' + visits.length + ' 次上门拜访';
-            const body = document.getElementById('visitDetailBody');
-            if (!visits.length) {
-                body.innerHTML = '<div style="text-align:center;color:#bbb;padding:20px;font-size:13px">还没有拜访记录</div>';
-            } else {
-                body.innerHTML = visits.slice().reverse().map(h =>
-                    '<div class="td-modal-row">' +
-                    '<div class="lbl">' + (h.date||'') + ' ' + (h.time||'') + (h.who ? ' · ' + h.who : '') + '</div>' +
-                    (h.visit_person ? '<div class="val" style="margin-bottom:4px">👤 ' + h.visit_person + (h.visit_position ? '（' + h.visit_position + '）' : '') + '</div>' : '') +
-                    '<div class="val" style="font-weight:400">' + (h.text||'') + '</div>' +
-                    (h.next ? '<div style="font-size:12px;color:#667eea;margin-top:4px">→ ' + h.next + '</div>' : '') +
-                    (h.next_visit_date ? '<div style="font-size:12px;color:#f57c00;margin-top:4px">📅 下次计划：' + h.next_visit_date + '</div>' : '') +
-                    '</div>'
-                ).join('');
-            }
-            document.getElementById('visitDetailOverlay').classList.add('show');
-        }
-
-        // 打开拜访页时渲染
-        const _origShowPageVisit = showPage;
-        showPage = function(id) {
-            _origShowPageVisit(id);
-            if (id === 'visitPage') { visitRender(); }
-        };
-
         /* ============ 数据概览（今日快照） ============ */
         function renderOverview() {
             const el = document.getElementById('ovContent');
@@ -4289,5 +4145,6 @@
         </div>
     </div>
 
+<script src="./visit.js"></script>
 </body>
 </html>
