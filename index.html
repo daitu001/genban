@@ -3334,7 +3334,7 @@ async function aliasSearch(keyword) {
             ' ALL:' + (ALL_CUSTOMER_NAMES ? ALL_CUSTOMER_NAMES.length : 'null') + ' S组:' + sconvNames.size + ' 全量:' + appNames.size + ' 合并:' + new Set([...sconvNames, ...appNames]).size + 
             ' net:' + (navigator.onLine?'on':'off') + ' v:' + (window._aliasVer||'?');
     }
-    window._aliasVer = '2303';
+    window._aliasVer = '0004';
     if (!sconvLoaded && !appLoaded) {
         el.innerHTML = '<div class="alias-empty">数据加载失败，请检查网络后刷新页面</div>';
         return;
@@ -3398,8 +3398,15 @@ function aliasSet(mainName, aliasName) {
     localStorage.setItem('alias_map_local', JSON.stringify(ALIAS_MAP));
     // 自动同步到 GitHub
     syncAliasToGitHub();
-    // 刷新弹窗内已关联列表（不关弹窗）
+    // 刷新弹窗内已关联列表（不关弹窗，保留搜索框）
+    const searchInput = document.getElementById('aliasSearchInput');
+    const savedKw = searchInput ? searchInput.value : '';
     openAliasModal(mainName);
+    // 恢复搜索框内容并重新搜索
+    if (savedKw && searchInput) {
+        searchInput.value = savedKw;
+        aliasSearch(savedKw);
+    }
     // 刷新外层页面
     if (typeof sConvRender === 'function' && document.getElementById('sConvPage').classList.contains('active')) sConvRender();
     const modal = document.getElementById('custModal');
@@ -3426,7 +3433,13 @@ function aliasRemove(mainName, aliasName) {
     }
     ALIAS_LOCAL_DIRTY = true;
     localStorage.setItem('alias_map_local', JSON.stringify(ALIAS_MAP));
+    const searchInput = document.getElementById('aliasSearchInput');
+    const savedKw = searchInput ? searchInput.value : '';
     openAliasModal(mainName);
+    if (savedKw && searchInput) {
+        searchInput.value = savedKw;
+        aliasSearch(savedKw);
+    }
     if (typeof sConvRender === 'function' && document.getElementById('sConvPage').classList.contains('active')) sConvRender();
 }
 
