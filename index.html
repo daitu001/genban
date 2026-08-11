@@ -1028,6 +1028,13 @@
                     <!-- 搜索栏：搜编号或客户名 -->
                     <div style="margin-bottom:10px">
                         <input id="fubanSearch" type="text" placeholder="🔍 搜编号或客户名" oninput="fubanOnSearch()" style="width:100%;padding:10px 14px;border:1.5px solid #e0e4ea;border-radius:20px;font-size:14px;box-sizing:border-box;background:#fff">
+                        <div style="display:flex;gap:6px;margin-top:8px" id="fubanTimeFilter">
+                            <button data-tf="all" onclick="fubanSetTimeFilter('all')" style="flex:1;padding:7px 0;border:none;border-radius:14px;background:#1976d2;color:#fff;font-size:12px;font-weight:600;cursor:pointer">全部</button>
+                            <button data-tf="season" onclick="fubanSetTimeFilter('season')" style="flex:1;padding:7px 0;border:none;border-radius:14px;background:#e0e4ea;color:#666;font-size:12px;font-weight:500;cursor:pointer">本季</button>
+                            <button data-tf="month" onclick="fubanSetTimeFilter('month')" style="flex:1;padding:7px 0;border:none;border-radius:14px;background:#e0e4ea;color:#666;font-size:12px;font-weight:500;cursor:pointer">近月</button>
+                            <button data-tf="week" onclick="fubanSetTimeFilter('week')" style="flex:1;padding:7px 0;border:none;border-radius:14px;background:#e0e4ea;color:#666;font-size:12px;font-weight:500;cursor:pointer">本周</button>
+                            <button data-tf="today" onclick="fubanSetTimeFilter('today')" style="flex:1;padding:7px 0;border:none;border-radius:14px;background:#e0e4ea;color:#666;font-size:12px;font-weight:500;cursor:pointer">今日</button>
+                        </div>
                     </div>
                     <div id="productList"></div>
                 </div>
@@ -2298,6 +2305,49 @@
             fubanSwitchTab(window._fubanTab || 'pending');
         }
 
+        // 复版专项时间筛选
+        window._fubanTimeFilter = window._fubanTimeFilter || 'all';
+        function fubanSetTimeFilter(tf) {
+            window._fubanTimeFilter = tf;
+            // 更新按钮样式
+            document.querySelectorAll('#fubanTimeFilter button').forEach(b => {
+                if (b.dataset.tf === tf) {
+                    b.style.background = '#1976d2'; b.style.color = '#fff'; b.style.fontWeight = '600';
+                } else {
+                    b.style.background = '#e0e4ea'; b.style.color = '#666'; b.style.fontWeight = '500';
+                }
+            });
+            fubanSwitchTab(window._fubanTab || 'pending', { keepSearch: true });
+        }
+        // 计算时间筛选的起始日期（返回 YYYY-MM-DD 字符串，null 表示不筛选）
+        function fubanTimeFilterStart() {
+            const tf = window._fubanTimeFilter;
+            if (!tf || tf === 'all') return null;
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const fmt = d => d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+            if (tf === 'today') return fmt(now);
+            if (tf === 'week') {
+                // 本周一
+                const d = new Date(now);
+                const day = d.getDay() || 7; // 周日=7
+                d.setDate(d.getDate() - day + 1);
+                return fmt(d);
+            }
+            if (tf === 'month') {
+                // 近月：上月今天
+                const d = new Date(now);
+                d.setMonth(d.getMonth() - 1);
+                return fmt(d);
+            }
+            if (tf === 'season') {
+                // 本季第一天
+                const q = Math.floor(now.getMonth() / 3) * 3;
+                return now.getFullYear() + '-' + pad(q+1) + '-01';
+            }
+            return null;
+        }
+
         // 复版专项 tab 切换
         function fubanSwitchTab(tab, opts) {
             const prevTab = window._fubanTab;
@@ -2319,6 +2369,11 @@
             const list = document.getElementById('productList');
             if (tab === 'pending') {
                 let showList = window._fubanActiveProds || [];
+                // 时间筛选：按最近复样日期
+                const tfStart = fubanTimeFilterStart();
+                if (tfStart) {
+                    showList = showList.filter(p => p.latest_date && p.latest_date >= tfStart);
+                }
                 // 搜索：编号或客户名
                 const searchKw = (document.getElementById('fubanSearch')?.value || '').trim().toLowerCase();
                 if (searchKw) {
@@ -2357,7 +2412,12 @@
                 list.innerHTML = showList.length ? showList.map(renderProdCard).join('') : '<div style="text-align:center;color:#999;padding:30px 0;font-size:13px">' + (searchKw ? '没有匹配的编号' : '全部编号都跟进完了 🎉') + '</div>';
             } else {
                 // 已跟进记录：按编号分组显示（一个编号下可含多个已跟进客户）
-                const records = window._fubanDoneRecords || [];
+                let records = window._fubanDoneRecords || [];
+                // 时间筛选：按跟进日期
+                const tfStart = fubanTimeFilterStart();
+                if (tfStart) {
+                    records = records.filter(r => r.date && r.date >= tfStart);
+                }
                 if (!records.length) {
                     list.innerHTML = '<div style="text-align:center;color:#999;padding:30px 0;font-size:13px">还没有已跟进的记录</div>';
                 } else {
@@ -3274,7 +3334,7 @@ async function aliasSearch(keyword) {
             ' ALL:' + (ALL_CUSTOMER_NAMES ? ALL_CUSTOMER_NAMES.length : 'null') + ' S组:' + sconvNames.size + ' 全量:' + appNames.size + ' 合并:' + new Set([...sconvNames, ...appNames]).size + 
             ' net:' + (navigator.onLine?'on':'off') + ' v:' + (window._aliasVer||'?');
     }
-    window._aliasVer = '2239';
+    window._aliasVer = '2303';
     if (!sconvLoaded && !appLoaded) {
         el.innerHTML = '<div class="alias-empty">数据加载失败，请检查网络后刷新页面</div>';
         return;
