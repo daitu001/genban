@@ -3169,9 +3169,22 @@ async function aliasSearch(keyword) {
     // 诊断信息
     const diagEl = document.getElementById('aliasDiag');
     if (diagEl) {
-        diagEl.textContent = 'SCONV:' + (sconvLoaded?'OK':'NULL') + ' APP:' + (appLoaded?'OK':'NULL') + 
-            ' UA:' + navigator.userAgent.slice(0,60) + ' URL:' + location.href.slice(0,50);
+        let appStatus = 'NULL';
+        if (typeof APP_DATA !== 'undefined') {
+            if (APP_DATA === null) appStatus = 'null';
+            else if (APP_DATA) appStatus = 'OK(groups:' + Object.keys(APP_DATA.groups||{}).length + ')';
+            else appStatus = 'falsy:' + typeof APP_DATA;
+        } else appStatus = 'undefined';
+        let sconvStatus = 'NULL';
+        if (typeof SCONV_DATA !== 'undefined' && SCONV_DATA) {
+            const sc = (SCONV_DATA.s_customers||[]).length;
+            const cc = (SCONV_DATA.converted_customers||[]).length;
+            sconvStatus = 'OK(s:' + sc + ',c:' + cc + ')';
+        }
+        diagEl.textContent = 'SCONV:' + sconvStatus + ' APP:' + appStatus + 
+            ' net:' + (navigator.onLine?'on':'off') + ' v:' + (window._aliasVer||'?');
     }
+    window._aliasVer = '1745';
     if (!sconvLoaded && !appLoaded) {
         el.innerHTML = '<div class="alias-empty">数据加载失败，请检查网络后刷新页面</div>';
         return;
