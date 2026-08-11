@@ -3134,6 +3134,13 @@ function aliasSearch(keyword) {
     const el = document.getElementById('aliasSearchResults');
     if (!keyword || keyword.length < 1) { el.innerHTML = ''; return; }
     const kw = keyword.toLowerCase();
+    // 检查数据是否加载完成
+    const sconvLoaded = !!SCONV_DATA;
+    const appLoaded = (typeof APP_DATA !== 'undefined' && APP_DATA);
+    if (!sconvLoaded && !appLoaded) {
+        el.innerHTML = '<div class="alias-empty">数据加载中，请稍等几秒再试…</div>';
+        return;
+    }
     // 从 SCONV_DATA 和 APP_DATA 收集所有客户名
     const names = new Set();
     if (SCONV_DATA) {
@@ -3159,7 +3166,7 @@ function aliasSearch(keyword) {
     names.delete(_aliasTargetName); // 排除自己
     const matched = [...names].filter(n => n.toLowerCase().includes(kw)).slice(0, 20);
     if (!matched.length) {
-        el.innerHTML = '<div class="alias-empty">没有匹配的客户</div>';
+        el.innerHTML = '<div class="alias-empty">没有匹配的客户（共搜到 '+names.size+' 家）<br><span style="font-size:11px;color:#ccc">S级:'+(SCONV_DATA?'✅':'❌')+' 全量:'+((typeof APP_DATA!=='undefined'&&APP_DATA)?'✅':'❌')+'</span></div>';
         return;
     }
     el.innerHTML = matched.map(n => {
