@@ -1304,7 +1304,7 @@
             <div id="aliasSearchResults" style="margin-top:8px;max-height:30vh;overflow-y:auto"></div>
             <div style="margin-top:16px;display:flex;gap:8px">
                 <button onclick="closeAliasModal()" style="flex:1;padding:12px;background:#eee;border:none;border-radius:12px;font-size:14px;cursor:pointer">取消</button>
-                <button id="aliasUploadBtn" onclick="aliasUploadOSS()" style="flex:1;padding:12px;background:#667eea;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">☁️ 同步到云端</button>
+                <button id="aliasUploadBtn" onclick="aliasUploadOSS()" style="flex:1;padding:12px;background:#667eea;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">📋 复制给管家</button>
             </div>
         </div>
     </div>
@@ -3176,7 +3176,7 @@ function aliasSet(mainName, aliasName) {
         }
     }
     // 提示
-    alert('已关联：' + mainName + ' = ' + aliasName + '\n点"同步到云端"后所有人可见');
+    alert('已关联：' + mainName + ' = ' + aliasName + '\n点"复制给管家"粘贴发群即可同步');
 }
 
 // 解除关联
@@ -3193,31 +3193,30 @@ function aliasRemove(mainName) {
     }
 }
 
-// 上传到 OSS（通过 GitHub API 中转，或管家每天跑数时同步）
+// 同步到云端——复制JSON到剪贴板，粘贴发群即可
 async function aliasUploadOSS() {
     const btn = document.getElementById('aliasUploadBtn');
-    btn.textContent = '⏳ 同步中…';
-    btn.disabled = true;
+    const json = JSON.stringify(ALIAS_MAP, null, 2);
     try {
-        // 生成 JSON 文件内容，下载让用户手动发群里
-        const json = JSON.stringify(ALIAS_MAP, null, 2);
-        const blob = new Blob([json], {type: 'application/json'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'alias_map.json';
-        a.click();
-        URL.revokeObjectURL(url);
-        btn.textContent = '✅ 已导出';
-        setTimeout(() => {
-            alert('alias_map.json 已下载\n请发到群里 @管家，管家会上传到 OSS 同步给所有人');
-            btn.textContent = '☁️ 同步到云端';
-            btn.disabled = false;
-        }, 500);
+        await navigator.clipboard.writeText(json);
+        btn.textContent = '✅ 已复制';
+        btn.style.background = '#4caf50';
+        alert('已复制关联数据\n请粘贴到群里发给管家，管家会同步给所有人');
     } catch(e) {
-        btn.textContent = '❌ 失败';
-        setTimeout(() => { btn.textContent = '☁️ 同步到云端'; btn.disabled = false; }, 2000);
+        // 剪贴板API不可用时降级为文本框
+        const ta = document.createElement('textarea');
+        ta.value = json;
+        ta.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;height:200px;z-index:9999;padding:12px;font-size:13px;border:2px solid #667eea;border-radius:12px;background:#fff';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, 99999);
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        btn.textContent = '✅ 已复制';
+        btn.style.background = '#4caf50';
+        alert('已复制关联数据\n请粘贴到群里发给管家，管家会同步给所有人');
     }
+    setTimeout(() => { btn.textContent = '📋 复制给管家'; btn.style.background = '#667eea'; }, 3000);
 }
 
 // 改造 sCustModalShow：标题行加关联按钮 + 显示别名
