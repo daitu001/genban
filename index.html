@@ -3141,7 +3141,19 @@ function aliasSearch(keyword) {
         (SCONV_DATA.s_customers || []).forEach(c => names.add(c.customer || c.name || ''));
     }
     if (typeof APP_DATA !== 'undefined' && APP_DATA) {
-        Object.keys(APP_DATA.customers || {}).forEach(n => names.add(n));
+        // 主数据在 groups 里，客户名字段是 company
+        const g = APP_DATA.groups || {};
+        Object.values(g).forEach(list => {
+            (list || []).forEach(c => names.add(c.company || c.customer || c.name || ''));
+        });
+        // 兼容 customers 字段（如果有的话）
+        if (APP_DATA.customers) {
+            if (Array.isArray(APP_DATA.customers)) {
+                APP_DATA.customers.forEach(c => names.add(c.company || c.customer || c.name || ''));
+            } else {
+                Object.keys(APP_DATA.customers).forEach(n => names.add(n));
+            }
+        }
     }
     names.delete('');
     names.delete(_aliasTargetName); // 排除自己
