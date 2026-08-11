@@ -3098,7 +3098,15 @@ async function loadAllCustomerNames() {
         const d = await r.json();
         const names = new Set();
         const g = d.groups || {};
-        Object.values(g).forEach(list => (list || []).forEach(c => names.add(c.company || c.customer || c.name || '')));
+        window._nameMap = {}; // company(标准名) → name(爱迅原始名)
+        Object.values(g).forEach(list => (list || []).forEach(c => {
+            const comp = c.company || c.customer || c.name || '';
+            const displayName = c.name || comp;
+            if (comp) {
+                names.add(comp);
+                window._nameMap[comp] = displayName;
+            }
+        }));
         names.delete('');
         ALL_CUSTOMER_NAMES = [...names];
         console.log('关联搜索全量客户名:', ALL_CUSTOMER_NAMES.length, '家');
@@ -3138,13 +3146,20 @@ async function loadAliasMap() {
 }
 loadAliasMap();
 
-// 获取显示名：如果客户A关联了B，显示 "A=B"
+// 获取显示名：用 name 字段（爱迅原始名），关联显示 "A=B"
 function aliasDisplayName(name) {
+    const nm = (window._nameMap && window._nameMap[name]) || name;
     const alias = ALIAS_MAP[name];
-    if (alias) return name + '=' + alias;
+    if (alias) {
+        const aliasNm = (window._nameMap && window._nameMap[alias]) || alias;
+        return nm + '=' + aliasNm;
+    }
     const main = ALIAS_REVERSE[name];
-    if (main) return main + '=' + name;
-    return name;
+    if (main) {
+        const mainNm = (window._nameMap && window._nameMap[main]) || main;
+        return mainNm + '=' + nm;
+    }
+    return nm;
 }
 
 // 打开关联弹窗
@@ -3222,7 +3237,7 @@ async function aliasSearch(keyword) {
             ' ALL:' + (ALL_CUSTOMER_NAMES ? ALL_CUSTOMER_NAMES.length : 'null') + ' S组:' + sconvNames.size + ' 全量:' + appNames.size + ' 合并:' + new Set([...sconvNames, ...appNames]).size + 
             ' net:' + (navigator.onLine?'on':'off') + ' v:' + (window._aliasVer||'?');
     }
-    window._aliasVer = '1818';
+    window._aliasVer = '2119';
     if (!sconvLoaded && !appLoaded) {
         el.innerHTML = '<div class="alias-empty">数据加载失败，请检查网络后刷新页面</div>';
         return;
@@ -3269,8 +3284,10 @@ async function aliasSearch(keyword) {
         return;
     }
     el.innerHTML = matched.map(n => {
+        const displayName = (window._nameMap && window._nameMap[n]) || n;
         const tag = ALIAS_MAP[n] ? ' <span class="alias-tag">='+ALIAS_MAP[n]+'</span>' : '';
-        return '<div class="alias-result-item" onclick="aliasSet(\''+_aliasTargetName.replace(/'/g,"")+'\', \''+n.replace(/'/g,"")+'\')">'+n+tag+'</div>';
+        const sub = (displayName !== n) ? '<div style="font-size:11px;color:#999">'+n+'</div>' : '';
+        return '<div class="alias-result-item" onclick="aliasSet(\''+_aliasTargetName.replace(/'/g,"")+'\', \''+n.replace(/'/g,"")+'\')">'+displayName+tag+sub+'</div>';
     }).join('');
 }
 
