@@ -1304,6 +1304,7 @@
             <input type="text" class="alias-search-input" id="aliasSearchInput" placeholder="搜索要关联的客户名…" oninput="aliasSearch(this.value)">
             <div id="aliasSearchResults" style="margin-top:8px;max-height:30vh;overflow-y:auto"></div>
             <div id="aliasDiag" style="margin-top:8px;padding:8px;background:#f5f5f5;border-radius:8px;font-size:11px;color:#999;font-family:monospace"></div>
+            <div style="margin-top:8px;text-align:center"><button onclick="location.href=location.pathname+'?v='+Date.now()" style="padding:8px 16px;background:#ff9800;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 强制刷新（清缓存）</button></div>
             <div style="margin-top:16px;display:flex;gap:8px">
                 <button onclick="closeAliasModal()" style="flex:1;padding:12px;background:#eee;border:none;border-radius:12px;font-size:14px;cursor:pointer">取消</button>
                 <button id="aliasUploadBtn" onclick="aliasUploadOSS()" style="flex:1;padding:12px;background:#667eea;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">☁️ 同步状态</button>
@@ -3184,7 +3185,7 @@ async function aliasSearch(keyword) {
         diagEl.textContent = 'SCONV:' + sconvStatus + ' APP:' + appStatus + 
             ' net:' + (navigator.onLine?'on':'off') + ' v:' + (window._aliasVer||'?');
     }
-    window._aliasVer = '1745';
+    window._aliasVer = '1758';
     if (!sconvLoaded && !appLoaded) {
         el.innerHTML = '<div class="alias-empty">数据加载失败，请检查网络后刷新页面</div>';
         return;
