@@ -3084,6 +3084,31 @@ let ALIAS_MAP = {}; // {"主客户": "别名"} — 从 OSS 读
 let ALIAS_REVERSE = {}; // {"别名": "主客户"} — 反向查找
 let ALIAS_LOCAL_DIRTY = false; // 本地有未同步的修改
 
+// 全量客户名缓存（关联搜索专用，不受角色过滤影响）
+let ALL_CUSTOMER_NAMES = null;
+async function loadAllCustomerNames() {
+    try {
+        let r;
+        try {
+            r = await fetch('https://youyi-01mishu.oss-cn-guangzhou.aliyuncs.com/genban/data/reorder_data.json?t=' + Date.now());
+            if (!r.ok) throw new Error('oss');
+        } catch(e) {
+            r = await fetch('./data/reorder_data.json?t=' + Date.now());
+        }
+        const d = await r.json();
+        const names = new Set();
+        const g = d.groups || {};
+        Object.values(g).forEach(list => (list || []).forEach(c => names.add(c.company || c.customer || c.name || '')));
+        names.delete('');
+        ALL_CUSTOMER_NAMES = [...names];
+        console.log('关联搜索全量客户名:', ALL_CUSTOMER_NAMES.length, '家');
+    } catch(e) {
+        console.warn('全量客户名加载失败:', e);
+        ALL_CUSTOMER_NAMES = null;
+    }
+}
+loadAllCustomerNames();
+
 // 加载别名映射
 async function loadAliasMap() {
     try {
@@ -3194,16 +3219,19 @@ async function aliasSearch(keyword) {
             Object.values(g).forEach(list => (list || []).forEach(c => appNames.add(c.company || c.customer || c.name || '')));
         }
         diagEl.textContent = 'SCONV:' + sconvStatus + ' APP:' + appStatus +
-            ' S组:' + sconvNames.size + ' 全量:' + appNames.size + ' 合并:' + new Set([...sconvNames, ...appNames]).size + 
+            ' ALL:' + (ALL_CUSTOMER_NAMES ? ALL_CUSTOMER_NAMES.length : 'null') + ' S组:' + sconvNames.size + ' 全量:' + appNames.size + ' 合并:' + new Set([...sconvNames, ...appNames]).size + 
             ' net:' + (navigator.onLine?'on':'off') + ' v:' + (window._aliasVer||'?');
     }
-    window._aliasVer = '1801';
+    window._aliasVer = '1818';
     if (!sconvLoaded && !appLoaded) {
         el.innerHTML = '<div class="alias-empty">数据加载失败，请检查网络后刷新页面</div>';
         return;
     }
-    // 从 SCONV_DATA 和 APP_DATA 收集所有客户名
+    // 优先用全量客户名（不受角色过滤影响）
     const names = new Set();
+    if (ALL_CUSTOMER_NAMES && ALL_CUSTOMER_NAMES.length) {
+        ALL_CUSTOMER_NAMES.forEach(n => names.add(n));
+    }
     if (SCONV_DATA) {
         (SCONV_DATA.converted_customers || []).forEach(c => names.add(c.customer || c.name || ''));
         (SCONV_DATA.s_customers || []).forEach(c => names.add(c.customer || c.name || ''));
