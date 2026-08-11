@@ -826,6 +826,22 @@
         .td-done-sec { text-align:center; font-size:12px; color:#999; padding:10px; cursor:pointer; }
         .td-done-item { display:flex; align-items:center; padding:8px 16px; font-size:12px; color:#999; }
         .td-done-item .n { flex:1; text-decoration:line-through; }
+
+        /* 客户别名关联 */
+        .alias-btn { display:inline-block; padding:4px 12px; background:#e3f2fd; color:#1565c0; border:none; border-radius:12px; font-size:12px; font-weight:600; cursor:pointer; margin-left:8px; }
+        .alias-btn:active { background:#bbdefb; }
+        .alias-tag { display:inline-block; background:#fff3e0; color:#e65100; font-size:12px; font-weight:600; padding:2px 8px; border-radius:8px; margin-left:6px; }
+        .alias-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1100; display:none; align-items:center; justify-content:center; padding:24px; }
+        .alias-modal.active { display:flex; }
+        .alias-modal-content { background:#fff; border-radius:20px; width:100%; max-width:400px; max-height:60vh; overflow-y:auto; padding:20px; }
+        .alias-search-input { width:100%; padding:12px 16px; border:2px solid #e0e0e0; border-radius:12px; font-size:15px; outline:none; box-sizing:border-box; }
+        .alias-search-input:focus { border-color:#667eea; }
+        .alias-result-item { padding:12px 16px; border-bottom:1px solid #f0f0f0; cursor:pointer; font-size:15px; }
+        .alias-result-item:active { background:#f5f5f5; }
+        .alias-current { background:#e8f5e9; border-radius:12px; padding:14px; margin-bottom:12px; }
+        .alias-current-name { font-size:16px; font-weight:700; color:#2e7d32; }
+        .alias-current-label { font-size:12px; color:#666; margin-top:2px; }
+        .alias-empty { text-align:center; padding:20px; color:#999; font-size:14px; }
 </style>
 </head>
 <body>
@@ -1269,6 +1285,27 @@
                 <div class="cust-modal-close" onclick="custModalClose()">✕</div>
             </div>
             <div id="custModalBody"></div>
+        </div>
+    </div>
+
+    <!-- 客户别名关联弹窗 -->
+    <div id="aliasModal" class="alias-modal" onclick="if(event.target===this)closeAliasModal()">
+        <div class="alias-modal-content">
+            <div class="cust-modal-header">
+                <div style="font-size:18px;font-weight:700;color:#333">🔗 关联客户别名</div>
+                <div class="cust-modal-close" onclick="closeAliasModal()">✕</div>
+            </div>
+            <div class="alias-current">
+                <div class="alias-current-label">当前客户</div>
+                <div class="alias-current-name" id="aliasCurrentName"></div>
+            </div>
+            <div id="aliasExisting"></div>
+            <input type="text" class="alias-search-input" id="aliasSearchInput" placeholder="搜索要关联的客户名…" oninput="aliasSearch(this.value)">
+            <div id="aliasSearchResults" style="margin-top:8px;max-height:30vh;overflow-y:auto"></div>
+            <div style="margin-top:16px;display:flex;gap:8px">
+                <button onclick="closeAliasModal()" style="flex:1;padding:12px;background:#eee;border:none;border-radius:12px;font-size:14px;cursor:pointer">取消</button>
+                <button id="aliasUploadBtn" onclick="aliasUploadOSS()" style="flex:1;padding:12px;background:#667eea;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">☁️ 同步到云端</button>
+            </div>
         </div>
     </div>
 
@@ -3024,6 +3061,191 @@
                 SCONV_DATA = null;
             }
         }
+
+// ==================== 客户别名关联 ====================
+let ALIAS_MAP = {}; // {"主客户": "别名"} — 从 OSS 读
+let ALIAS_REVERSE = {}; // {"别名": "主客户"} — 反向查找
+let ALIAS_LOCAL_DIRTY = false; // 本地有未同步的修改
+
+// 加载别名映射
+async function loadAliasMap() {
+    try {
+        const r = await fetch('https://youyi-01mishu.oss-cn-guangzhou.aliyuncs.com/genban/data/alias_map.json?t=' + Date.now());
+        if (r.ok) {
+            const data = await r.json();
+            ALIAS_MAP = data || {};
+        } else {
+            ALIAS_MAP = {};
+        }
+    } catch(e) {
+        ALIAS_MAP = {};
+    }
+    // 合并本地未同步的
+    try {
+        const local = localStorage.getItem('alias_map_local');
+        if (local) {
+            const localMap = JSON.parse(local);
+            Object.assign(ALIAS_MAP, localMap);
+        }
+    } catch(e) {}
+    // 构建反向映射
+    ALIAS_REVERSE = {};
+    for (const [main, alias] of Object.entries(ALIAS_MAP)) {
+        ALIAS_REVERSE[alias] = main;
+    }
+}
+loadAliasMap();
+
+// 获取显示名：如果客户A关联了B，显示 "A=B"
+function aliasDisplayName(name) {
+    const alias = ALIAS_MAP[name];
+    if (alias) return name + '=' + alias;
+    const main = ALIAS_REVERSE[name];
+    if (main) return main + '=' + name;
+    return name;
+}
+
+// 打开关联弹窗
+let _aliasTargetName = '';
+function openAliasModal(name) {
+    _aliasTargetName = name;
+    document.getElementById('aliasCurrentName').textContent = name;
+    // 显示已有关联
+    const existing = document.getElementById('aliasExisting');
+    const alias = ALIAS_MAP[name];
+    if (alias) {
+        existing.innerHTML = '<div style="background:#fff3e0;border-radius:12px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">' +
+            '<div><span style="font-size:12px;color:#999">已关联别名</span><div style="font-size:15px;font-weight:700;color:#e65100">'+alias+'</div></div>' +
+            '<button onclick="aliasRemove(\''+name+'\')" style="padding:6px 12px;background:#ffebee;color:#c62828;border:none;border-radius:8px;font-size:12px;cursor:pointer">解除</button></div>';
+    } else {
+        existing.innerHTML = '';
+    }
+    document.getElementById('aliasSearchInput').value = '';
+    document.getElementById('aliasSearchResults').innerHTML = '';
+    document.getElementById('aliasModal').classList.add('active');
+}
+
+function closeAliasModal() {
+    document.getElementById('aliasModal').classList.remove('active');
+}
+
+// 搜索客户
+function aliasSearch(keyword) {
+    const el = document.getElementById('aliasSearchResults');
+    if (!keyword || keyword.length < 1) { el.innerHTML = ''; return; }
+    const kw = keyword.toLowerCase();
+    // 从 SCONV_DATA 和 APP_DATA 收集所有客户名
+    const names = new Set();
+    if (SCONV_DATA) {
+        (SCONV_DATA.converted_customers || []).forEach(c => names.add(c.customer || c.name || ''));
+        (SCONV_DATA.s_customers || []).forEach(c => names.add(c.customer || c.name || ''));
+    }
+    if (typeof APP_DATA !== 'undefined' && APP_DATA) {
+        Object.keys(APP_DATA.customers || {}).forEach(n => names.add(n));
+    }
+    names.delete('');
+    names.delete(_aliasTargetName); // 排除自己
+    const matched = [...names].filter(n => n.toLowerCase().includes(kw)).slice(0, 20);
+    if (!matched.length) {
+        el.innerHTML = '<div class="alias-empty">没有匹配的客户</div>';
+        return;
+    }
+    el.innerHTML = matched.map(n => {
+        const tag = ALIAS_MAP[n] ? ' <span class="alias-tag">='+ALIAS_MAP[n]+'</span>' : '';
+        return '<div class="alias-result-item" onclick="aliasSet(\''+_aliasTargetName.replace(/'/g,"")+'\', \''+n.replace(/'/g,"")+'\')">'+n+tag+'</div>';
+    }).join('');
+}
+
+// 设置关联
+function aliasSet(mainName, aliasName) {
+    ALIAS_MAP[mainName] = aliasName;
+    ALIAS_REVERSE[aliasName] = mainName;
+    ALIAS_LOCAL_DIRTY = true;
+    // 存本地
+    localStorage.setItem('alias_map_local', JSON.stringify(ALIAS_MAP));
+    closeAliasModal();
+    // 刷新显示
+    if (typeof sConvRender === 'function' && document.getElementById('sConvPage').classList.contains('active')) sConvRender();
+    // 如果弹窗开着，刷新弹窗
+    const modal = document.getElementById('custModal');
+    if (modal && modal.classList.contains('active')) {
+        const nameEl = document.getElementById('custModalName');
+        if (nameEl) {
+            const rawName = nameEl.textContent.split('=')[0];
+            nameEl.textContent = aliasDisplayName(rawName);
+        }
+    }
+    // 提示
+    alert('已关联：' + mainName + ' = ' + aliasName + '\n点"同步到云端"后所有人可见');
+}
+
+// 解除关联
+function aliasRemove(mainName) {
+    const alias = ALIAS_MAP[mainName];
+    if (alias) {
+        delete ALIAS_REVERSE[alias];
+        delete ALIAS_MAP[mainName];
+        ALIAS_LOCAL_DIRTY = true;
+        localStorage.setItem('alias_map_local', JSON.stringify(ALIAS_MAP));
+        closeAliasModal();
+        if (typeof sConvRender === 'function' && document.getElementById('sConvPage').classList.contains('active')) sConvRender();
+        alert('已解除 ' + mainName + ' 的关联');
+    }
+}
+
+// 上传到 OSS（通过 GitHub API 中转，或管家每天跑数时同步）
+async function aliasUploadOSS() {
+    const btn = document.getElementById('aliasUploadBtn');
+    btn.textContent = '⏳ 同步中…';
+    btn.disabled = true;
+    try {
+        // 生成 JSON 文件内容，下载让用户手动发群里
+        const json = JSON.stringify(ALIAS_MAP, null, 2);
+        const blob = new Blob([json], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'alias_map.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        btn.textContent = '✅ 已导出';
+        setTimeout(() => {
+            alert('alias_map.json 已下载\n请发到群里 @管家，管家会上传到 OSS 同步给所有人');
+            btn.textContent = '☁️ 同步到云端';
+            btn.disabled = false;
+        }, 500);
+    } catch(e) {
+        btn.textContent = '❌ 失败';
+        setTimeout(() => { btn.textContent = '☁️ 同步到云端'; btn.disabled = false; }, 2000);
+    }
+}
+
+// 改造 sCustModalShow：标题行加关联按钮 + 显示别名
+const _origSCustModalShow = sCustModalShow;
+sCustModalShow = function(name) {
+    // 如果 name 是别名，先找主名
+    const mainName = ALIAS_REVERSE[name] || name;
+    _origSCustModalShow(mainName);
+    // 修改标题
+    const nameEl = document.getElementById('custModalName');
+    if (nameEl) {
+        nameEl.innerHTML = aliasDisplayName(mainName) +
+            ' <button class="alias-btn" onclick="event.stopPropagation();openAliasModal(\''+mainName.replace(/'/g,"")+'\')">🔗 关联</button>';
+    }
+};
+
+// 改造 custModalShow：同样加关联按钮
+const _origCustModalShow = custModalShow;
+custModalShow = function(name) {
+    const mainName = ALIAS_REVERSE[name] || name;
+    _origCustModalShow(mainName);
+    const nameEl = document.getElementById('custModalName');
+    if (nameEl) {
+        nameEl.innerHTML = aliasDisplayName(mainName) +
+            ' <button class="alias-btn" onclick="event.stopPropagation();openAliasModal(\''+mainName.replace(/'/g,"")+'\')">🔗 关联</button>';
+    }
+};
+
         loadSConv();
 
         function sConvRender() {
@@ -3047,7 +3269,7 @@
 
             const card = (title, sub, body) => '<div class="st-card"><div class="st-title">'+title+'</div>'+(sub?'<div class="st-sub">'+sub+'</div>':'')+body+'</div>';
             const row = (name, line1, line2, color) => '<div class="td-item" onclick="custModalShow(\''+String(name).replace(/'/g,"")+'\')" style="cursor:pointer">' +
-                '<div style="flex:1;min-width:0"><div class="td-name">'+name+'</div><div class="td-reason" style="font-size:13px;font-weight:400;color:#666">'+line1+'</div></div>' +
+                '<div style="flex:1;min-width:0"><div class="td-name">'+aliasDisplayName(name)+'</div><div class="td-reason" style="font-size:13px;font-weight:400;color:#666">'+line1+'</div></div>' +
                 '<div style="font-size:13px;font-weight:600;color:'+(color||'#667eea')+';white-space:nowrap;margin-left:8px">'+line2+'</div></div>';
 
             let h = '<div style="font-size:11px;color:#999;padding:0 4px 10px">数据基准 '+(SCONV_DATA.generated_at||'').slice(0,10)+' · S=只剪样未下大货的新客户</div>';
