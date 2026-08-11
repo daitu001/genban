@@ -2136,7 +2136,14 @@
         async function loadData() {
             try {
                 // 加载复版专项数据（含产品列表、排行榜、客户分级）
-                const response = await fetch('https://youyi-01mishu.oss-cn-guangzhou.aliyuncs.com/genban/data/reorder_data.json');
+                let response;
+                try {
+                    response = await fetch('https://youyi-01mishu.oss-cn-guangzhou.aliyuncs.com/genban/data/reorder_data.json');
+                    if (!response.ok) throw new Error('oss http '+response.status);
+                } catch(ossErr) {
+                    console.warn('OSS 拉取失败，降级到 GitHub Pages:', ossErr);
+                    response = await fetch('./data/reorder_data.json?t=' + Date.now());
+                }
                 APP_DATA = await response.json();
                 
                 // 按当前登录角色过滤客户数据（刘老师看全部）
@@ -3052,8 +3059,15 @@
         let SCONV_DATA = null;
         async function loadSConv() {
             try {
-                const r = await fetch('https://youyi-01mishu.oss-cn-guangzhou.aliyuncs.com/genban/data/s_conversion_data.json?t='+Date.now());
-                if (!r.ok) throw new Error('http '+r.status);
+                let r;
+                try {
+                    r = await fetch('https://youyi-01mishu.oss-cn-guangzhou.aliyuncs.com/genban/data/s_conversion_data.json?t='+Date.now());
+                    if (!r.ok) throw new Error('oss http '+r.status);
+                } catch(ossErr) {
+                    console.warn('S级数据 OSS 失败，降级 GitHub Pages:', ossErr);
+                    r = await fetch('./data/s_conversion_data.json?t=' + Date.now());
+                    if (!r.ok) throw new Error('gh http '+r.status);
+                }
                 SCONV_DATA = await r.json();
                 const el = document.getElementById('sConvContent');
                 if (el && document.getElementById('sConvPage').classList.contains('active')) sConvRender();
