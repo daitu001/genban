@@ -3138,10 +3138,14 @@ async function loadAliasMap() {
             Object.assign(ALIAS_MAP, localMap);
         }
     } catch(e) {}
+    // 兼容旧格式：值是字符串则转数组
+    for (const [k, v] of Object.entries(ALIAS_MAP)) {
+        if (typeof v === 'string') ALIAS_MAP[k] = [v];
+    }
     // 构建反向映射
     ALIAS_REVERSE = {};
-    for (const [main, alias] of Object.entries(ALIAS_MAP)) {
-        ALIAS_REVERSE[alias] = main;
+    for (const [main, aliases] of Object.entries(ALIAS_MAP)) {
+        (Array.isArray(aliases) ? aliases : [aliases]).forEach(a => ALIAS_REVERSE[a] = main);
     }
 }
 loadAliasMap();
@@ -3149,17 +3153,15 @@ loadAliasMap();
 // 获取显示名：用 name 字段（爱迅原始名），关联显示 "A=B"
 function aliasDisplayName(name) {
     const nm = (window._nameMap && window._nameMap[name]) || name;
-    const alias = ALIAS_MAP[name];
-    if (alias) {
-        const aliasNm = (window._nameMap && window._nameMap[alias]) || alias;
-        return nm + '=' + aliasNm;
-    }
-    const main = ALIAS_REVERSE[name];
-    if (main) {
-        const mainNm = (window._nameMap && window._nameMap[main]) || main;
-        return mainNm + '=' + nm;
-    }
-    return nm;
+    // 找主名（如果当前是别名）
+    const mainName = ALIAS_REVERSE[name] || name;
+    // 收集主名的所有别名
+    const aliases = Object.entries(ALIAS_MAP).filter(([k,v]) => k === mainName).map(([k,v]) => v);
+    if (!aliases.length) return nm;
+    const mainNm = (window._nameMap && window._nameMap[mainName]) || mainName;
+    const parts = [mainNm];
+    aliases.forEach(a => parts.push((window._nameMap && window._nameMap[a]) || a));
+    return parts.join('=');
 }
 
 // 打开关联弹窗
@@ -3169,11 +3171,23 @@ function openAliasModal(name) {
     document.getElementById('aliasCurrentName').textContent = name;
     // 显示已有关联
     const existing = document.getElementById('aliasExisting');
-    const alias = ALIAS_MAP[name];
-    if (alias) {
-        existing.innerHTML = '<div style="background:#fff3e0;border-radius:12px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">' +
-            '<div><span style="font-size:12px;color:#999">已关联别名</span><div style="font-size:15px;font-weight:700;color:#e65100">'+alias+'</div></div>' +
-            '<button onclick="aliasRemove(\''+name+'\')" style="padding:6px 12px;background:#ffebee;color:#c62828;border:none;border-radius:8px;font-size:12px;cursor:pointer">解除</button></div>';
+    // 显示所有已关联别名
+    const allAliases = Object.entries(ALIAS_MAP).filter(([k,v]) => k === name).map(([k,v]) => v);
+    // 也检查反向（如果当前客户是别人的别名）
+    const mainFor = ALIAS_REVERSE[name];
+    if (allAliases.length || mainFor) {
+        let eh = '';
+        if (mainFor) {
+            const mainNm = (window._nameMap && window._nameMap[mainFor]) || mainFor;
+            eh += '<div style="background:#e3f2fd;border-radius:12px;padding:12px;margin-bottom:8px"><span style="font-size:12px;color:#999">已关联到</span><div style="font-size:15px;font-weight:700;color:#1565c0">'+mainNm+'</div></div>';
+        }
+        allAliases.forEach(a => {
+            const aNm = (window._nameMap && window._nameMap[a]) || a;
+            eh += '<div style="background:#fff3e0;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">' +
+                '<div><span style="font-size:12px;color:#999">已关联别名</span><div style="font-size:15px;font-weight:700;color:#e65100">'+aNm+'</div></div>' +
+                '<button onclick="aliasRemove(\''+name+'\',\''+a.replace(/'/g,"")+'\')" style="padding:6px 12px;background:#ffebee;color:#c62828;border:none;border-radius:8px;font-size:12px;cursor:pointer">解除</button></div>';
+        });
+        existing.innerHTML = eh;
     } else {
         existing.innerHTML = '';
     }
@@ -3237,7 +3251,7 @@ async function aliasSearch(keyword) {
             ' ALL:' + (ALL_CUSTOMER_NAMES ? ALL_CUSTOMER_NAMES.length : 'null') + ' S组:' + sconvNames.size + ' 全量:' + appNames.size + ' 合并:' + new Set([...sconvNames, ...appNames]).size + 
             ' net:' + (navigator.onLine?'on':'off') + ' v:' + (window._aliasVer||'?');
     }
-    window._aliasVer = '2119';
+    window._aliasVer = '2127';
     if (!sconvLoaded && !appLoaded) {
         el.innerHTML = '<div class="alias-empty">数据加载失败，请检查网络后刷新页面</div>';
         return;
@@ -3285,23 +3299,24 @@ async function aliasSearch(keyword) {
     }
     el.innerHTML = matched.map(n => {
         const displayName = (window._nameMap && window._nameMap[n]) || n;
-        const tag = ALIAS_MAP[n] ? ' <span class="alias-tag">='+ALIAS_MAP[n]+'</span>' : '';
+        const tag = ALIAS_MAP[n] ? ' <span class="alias-tag">已关联'+(Array.isArray(ALIAS_MAP[n])?ALIAS_MAP[n].length:1)+'个</span>' : '';
         const sub = (displayName !== n) ? '<div style="font-size:11px;color:#999">'+n+'</div>' : '';
         return '<div class="alias-result-item" onclick="aliasSet(\''+_aliasTargetName.replace(/'/g,"")+'\', \''+n.replace(/'/g,"")+'\')">'+displayName+tag+sub+'</div>';
     }).join('');
 }
 
-// 设置关联
+// 设置关联（多选模式：选完不关弹窗，可继续关联）
 function aliasSet(mainName, aliasName) {
-    ALIAS_MAP[mainName] = aliasName;
+    if (!ALIAS_MAP[mainName]) ALIAS_MAP[mainName] = [];
+    if (typeof ALIAS_MAP[mainName] === 'string') ALIAS_MAP[mainName] = [ALIAS_MAP[mainName]];
+    if (!ALIAS_MAP[mainName].includes(aliasName)) ALIAS_MAP[mainName].push(aliasName);
     ALIAS_REVERSE[aliasName] = mainName;
     ALIAS_LOCAL_DIRTY = true;
-    // 存本地
     localStorage.setItem('alias_map_local', JSON.stringify(ALIAS_MAP));
-    closeAliasModal();
-    // 刷新显示
+    // 刷新弹窗内已关联列表（不关弹窗）
+    openAliasModal(mainName);
+    // 刷新外层页面
     if (typeof sConvRender === 'function' && document.getElementById('sConvPage').classList.contains('active')) sConvRender();
-    // 如果弹窗开着，刷新弹窗
     const modal = document.getElementById('custModal');
     if (modal && modal.classList.contains('active')) {
         const nameEl = document.getElementById('custModalName');
@@ -3310,22 +3325,24 @@ function aliasSet(mainName, aliasName) {
             nameEl.textContent = aliasDisplayName(rawName);
         }
     }
-    // 提示
-    alert('已关联：' + mainName + ' = ' + aliasName + '\n本机已生效，管家跑数后全员同步');
 }
 
-// 解除关联
-function aliasRemove(mainName) {
-    const alias = ALIAS_MAP[mainName];
-    if (alias) {
-        delete ALIAS_REVERSE[alias];
+// 解除关联（可指定解除某个别名）
+function aliasRemove(mainName, aliasName) {
+    if (!ALIAS_MAP[mainName]) return;
+    if (typeof ALIAS_MAP[mainName] === 'string') ALIAS_MAP[mainName] = [ALIAS_MAP[mainName]];
+    if (aliasName) {
+        ALIAS_MAP[mainName] = ALIAS_MAP[mainName].filter(a => a !== aliasName);
+        delete ALIAS_REVERSE[aliasName];
+        if (!ALIAS_MAP[mainName].length) delete ALIAS_MAP[mainName];
+    } else {
+        ALIAS_MAP[mainName].forEach(a => delete ALIAS_REVERSE[a]);
         delete ALIAS_MAP[mainName];
-        ALIAS_LOCAL_DIRTY = true;
-        localStorage.setItem('alias_map_local', JSON.stringify(ALIAS_MAP));
-        closeAliasModal();
-        if (typeof sConvRender === 'function' && document.getElementById('sConvPage').classList.contains('active')) sConvRender();
-        alert('已解除 ' + mainName + ' 的关联');
     }
+    ALIAS_LOCAL_DIRTY = true;
+    localStorage.setItem('alias_map_local', JSON.stringify(ALIAS_MAP));
+    openAliasModal(mainName);
+    if (typeof sConvRender === 'function' && document.getElementById('sConvPage').classList.contains('active')) sConvRender();
 }
 
 // 同步状态提示——本地已生效，管家跑数后全员同步
