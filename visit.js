@@ -346,5 +346,55 @@ if (typeof cloudInit === 'function') {
     }, 1000);
 }
 
+// ============ 从 OSS 拉取团队跟进记录（SCF note action 存的 JSON） ============
+function syncFollowupsFromOSS() {
+    fetch('https://youyi-01mishu.oss-cn-guangzhou.aliyuncs.com/genban/data/activity_log.json?t=' + Date.now())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data || !data.logs || !data.logs.length) return;
+            var all = hdGetDone();
+            var merged = 0;
+            data.logs.forEach(function(log) {
+                if (log.action !== 'note' || !log.detail) return;
+                try {
+                    var rec = JSON.parse(log.detail);
+                    if (rec.type !== 'followup' || !rec.customer) return;
+                    var name = rec.customer;
+                    if (!all[name]) all[name] = { history: [] };
+                    if (!all[name].history) all[name].history = [];
+                    // 去重：同客户+同日期+同时间+同内容
+                    var exists = all[name].history.some(function(h) {
+                        return h.date === rec.date && h.time === rec.time && h.text === rec.text;
+                    });
+                    if (!exists) {
+                        all[name].history.push({
+                            way: rec.way || '微信',
+                            text: rec.text || '',
+                            next: rec.next || '',
+                            date: rec.date || '',
+                            time: rec.time || '',
+                            who: rec.who || log.who || '',
+                            contact_name: rec.contact_name || '',
+                            contact_role: rec.contact_role || '',
+                            next_visit_date: rec.next_visit_date || ''
+                        });
+                        merged++;
+                    }
+                    // 更新 lastDone
+                    if (!all[name].lastDone || (rec.date && rec.date > all[name].lastDone.date)) {
+                        all[name].lastDone = { date: rec.date, time: rec.time };
+                    }
+                } catch(e) {}
+            });
+            if (merged > 0) {
+                localStorage.setItem(hdKey(), JSON.stringify(all));
+                console.log('OSS跟进同步完成，新增 ' + merged + ' 条团队记录');
+            }
+        })
+        .catch(function(e) { console.log('OSS跟进同步失败:', e); });
+}
+// 页面加载后自动同步一次
+setTimeout(syncFollowupsFromOSS, 2000);
+
 var _origShowPageVisit2 = showPage;
 showPage = function(id) { _origShowPageVisit2(id); if (id === 'visitPage') visitRender(); };
