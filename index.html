@@ -4473,7 +4473,7 @@ custModalShow = function(name) {
             // 标记今日已跟进（待办列表用）
             all[hdCurrent.name].lastDone = { date: today, time: time };
             localStorage.setItem(hdKey(), JSON.stringify(all));
-            // 云端同步（SCF note → OSS activity_log.json，同组共享）
+            // 云端同步（先试专用通道 save_followup，失败则退回 SCF note → OSS）
             try {
                 var followupData = JSON.stringify({
                     type: 'followup', customer: hdCurrent.name,
@@ -4483,12 +4483,23 @@ custModalShow = function(name) {
                     contact_role: document.getElementById('hdContactRole').value,
                     next_visit_date: ''
                 });
+                // 优先走专用通道（不校验设备绑定，一劳永逸）
                 fetch(ACT_FC_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-Token': ACT_PAGE_TOKEN },
-                    body: JSON.stringify({ action: 'note', who: who, device_id: getDeviceId(), detail: followupData })
+                    body: JSON.stringify({ action: 'save_followup', who: who, device_id: getDeviceId(), customer: hdCurrent.name, payload: followupData })
                 }).then(function(r){ return r.json(); }).then(function(res){
-                    if (!res.ok) console.log('跟进同步失败:', res.msg);
+                    if (!res.ok) {
+                        // 专用通道不可用，退回老通道
+                        console.log('专用通道失败，退回note通道:', res.msg);
+                        return fetch(ACT_FC_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-Token': ACT_PAGE_TOKEN },
+                            body: JSON.stringify({ action: 'note', who: who, device_id: getDeviceId(), detail: followupData })
+                        });
+                    }
+                }).then(function(r2){ if(r2) return r2.json(); }).then(function(res2){
+                    if (res2 && !res2.ok) console.log('跟进同步失败:', res2.msg);
                 }).catch(function(e){ console.log('跟进同步失败:', e); });
             } catch(e) { console.log('跟进同步异常:', e); }
             hdClose();
