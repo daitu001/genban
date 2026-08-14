@@ -346,12 +346,27 @@ if (typeof cloudInit === 'function') {
     }, 1000);
 }
 
-// ============ 从 OSS 拉取团队跟进记录（SCF note action 存的 JSON） ============
+// ============ 跟进记录团队同步（SCF note → OSS activity_log.json） ============
+// 业务组：同组共享，跨组隔离（刘老师可见全部）
+var FOLLOWUP_GROUPS = {
+    '超A组': ['灰姑娘', '只只'],
+    'ABC组': ['小杰', '朵丹']
+};
+function getMyFollowupMembers() {
+    var who = localStorage.getItem('current_salesperson') || '';
+    for (var g in FOLLOWUP_GROUPS) {
+        if (FOLLOWUP_GROUPS[g].indexOf(who) >= 0) return FOLLOWUP_GROUPS[g];
+    }
+    return null;  // 刘老师等管理员可见全部
+}
+
+// 从 OSS 拉取团队跟进记录合并到本地（按业务组过滤）
 function syncFollowupsFromOSS() {
     fetch('https://youyi-01mishu.oss-cn-guangzhou.aliyuncs.com/genban/data/activity_log.json?t=' + Date.now())
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data || !data.logs || !data.logs.length) return;
+            var members = getMyFollowupMembers();
             var all = hdGetDone();
             var merged = 0;
             data.logs.forEach(function(log) {
@@ -359,6 +374,8 @@ function syncFollowupsFromOSS() {
                 try {
                     var rec = JSON.parse(log.detail);
                     if (rec.type !== 'followup' || !rec.customer) return;
+                    // 业务组隔离：只拉取同组成员的记录（null=管理员可见全部）
+                    if (members && members.indexOf(rec.who) < 0) return;
                     var name = rec.customer;
                     if (!all[name]) all[name] = { history: [] };
                     if (!all[name].history) all[name].history = [];

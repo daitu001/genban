@@ -4446,7 +4446,7 @@ custModalShow = function(name) {
             // 标记今日已跟进（待办列表用）
             all[hdCurrent.name].lastDone = { date: today, time: time };
             localStorage.setItem(hdKey(), JSON.stringify(all));
-            // 云端同步（SCF → OSS activity_log.json，团队共享）
+            // 云端同步（SCF note → OSS activity_log.json，同组共享）
             try {
                 var followupData = JSON.stringify({
                     type: 'followup', customer: hdCurrent.name,
