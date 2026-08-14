@@ -410,8 +410,10 @@ function syncFollowupsFromOSS() {
         })
         .catch(function(e) { console.log('OSS跟进同步失败:', e); });
 }
-// 页面加载后自动同步一次
-setTimeout(syncFollowupsFromOSS, 2000);
+// 页面加载后自动同步一次（延迟到登录后执行，确保业务组过滤正确）
+setTimeout(function() {
+    if (localStorage.getItem('current_salesperson')) syncFollowupsFromOSS();
+}, 3000);
 
 var _origShowPageVisit2 = showPage;
 showPage = function(id) { _origShowPageVisit2(id); if (id === 'visitPage') visitRender(); };
