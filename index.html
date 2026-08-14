@@ -2313,6 +2313,15 @@
                             <span class="status-stat orange">准备下单 ${preparing}</span>
                             <span class="status-stat red">未下单 ${pending}</span>
                         </div>
+                        <div style="margin-top:6px;padding-top:6px;border-top:1px dashed #eee;font-size:12px;line-height:1.8">
+                            ${p.customers.map(c => {
+                                const fu = getFollowUp(p.product, c.customer);
+                                const fuInfo = fu ? getFollowUpDate(p.product, c.customer) : '';
+                                return fu
+                                    ? `<span style="color:#28a745">✓ ${c.customer}</span>`
+                                    : `<span style="color:#dc3545">✗ ${c.customer}</span>`;
+                            }).join('　')}
+                        </div>
                         ${p.pending_count !== undefined ? `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #ffe0b2;font-size:13px;color:#e65100;font-weight:600">⏳ 还有 ${p.pending_count} 个客户复样未跟进</div>` : ''}
                     </div>
                 `;
