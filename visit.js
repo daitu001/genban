@@ -373,33 +373,46 @@ function syncFollowupsFromOSS() {
                 if (log.action !== 'note' || !log.detail) return;
                 try {
                     var rec = JSON.parse(log.detail);
-                    if (rec.type !== 'followup' || !rec.customer) return;
                     // 业务组隔离：只拉取同组成员的记录（null=管理员可见全部）
                     if (members && members.indexOf(rec.who) < 0) return;
-                    var name = rec.customer;
-                    if (!all[name]) all[name] = { history: [] };
-                    if (!all[name].history) all[name].history = [];
-                    // 去重：同客户+同日期+同时间+同内容
-                    var exists = all[name].history.some(function(h) {
-                        return h.date === rec.date && h.time === rec.time && h.text === rec.text;
-                    });
-                    if (!exists) {
-                        all[name].history.push({
-                            way: rec.way || '微信',
-                            text: rec.text || '',
-                            next: rec.next || '',
-                            date: rec.date || '',
-                            time: rec.time || '',
-                            who: rec.who || log.who || '',
-                            contact_name: rec.contact_name || '',
-                            contact_role: rec.contact_role || '',
-                            next_visit_date: rec.next_visit_date || ''
+                    // 类型1：跟进记录（hdSubmit 弹窗）
+                    if (rec.type === 'followup' && rec.customer) {
+                        var name = rec.customer;
+                        if (!all[name]) all[name] = { history: [] };
+                        if (!all[name].history) all[name].history = [];
+                        // 去重：同客户+同日期+同时间+同内容
+                        var exists = all[name].history.some(function(h) {
+                            return h.date === rec.date && h.time === rec.time && h.text === rec.text;
                         });
-                        merged++;
+                        if (!exists) {
+                            all[name].history.push({
+                                way: rec.way || '微信',
+                                text: rec.text || '',
+                                next: rec.next || '',
+                                date: rec.date || '',
+                                time: rec.time || '',
+                                who: rec.who || log.who || '',
+                                contact_name: rec.contact_name || '',
+                                contact_role: rec.contact_role || '',
+                                next_visit_date: rec.next_visit_date || ''
+                            });
+                            merged++;
+                        }
+                        // 更新 lastDone
+                        if (!all[name].lastDone || (rec.date && rec.date > all[name].lastDone.date)) {
+                            all[name].lastDone = { date: rec.date, time: rec.time };
+                        }
                     }
-                    // 更新 lastDone
-                    if (!all[name].lastDone || (rec.date && rec.date > all[name].lastDone.date)) {
-                        all[name].lastDone = { date: rec.date, time: rec.time };
+                    // 类型2：复版专项跟进标记（saveFollowUp）
+                    if (rec.type === 'followup_mark' && rec.product && rec.customer) {
+                        var k = 'followup_' + rec.product + '_' + rec.customer;
+                        var kd = 'followup_date_' + rec.product + '_' + rec.customer;
+                        // 只同步“已跟进”标记（取消标记只本地生效，避免误删）
+                        if (rec.followed === '1' && localStorage.getItem(k) !== '1') {
+                            localStorage.setItem(k, '1');
+                            if (rec.date) localStorage.setItem(kd, rec.date + (rec.time ? ' ' + rec.time : '') + (rec.who ? ' ' + rec.who : ''));
+                            merged++;
+                        }
                     }
                 } catch(e) {}
             });

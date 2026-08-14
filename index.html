@@ -2199,6 +2199,24 @@
             if (followed) {
                 localStorage.setItem(`followup_date_${product}_${customer}`, new Date().toISOString().slice(0,10));
             }
+            // 云端同步（SCF note → OSS，团队共享标记状态）
+            try {
+                var who = localStorage.getItem('current_salesperson') || '';
+                var markData = JSON.stringify({
+                    type: 'followup_mark', product: product, customer: customer,
+                    followed: followed ? '1' : '0',
+                    date: new Date().toISOString().slice(0,10),
+                    time: new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}),
+                    who: who
+                });
+                fetch(ACT_FC_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Token': ACT_PAGE_TOKEN },
+                    body: JSON.stringify({ action: 'note', who: who, device_id: getDeviceId(), detail: markData })
+                }).then(function(r){ return r.json(); }).then(function(res){
+                    if (!res.ok) console.log('跟进标记同步失败:', res.msg);
+                }).catch(function(e){ console.log('跟进标记同步失败:', e); });
+            } catch(e) { console.log('跟进标记同步异常:', e); }
         }
 
         function getFollowUp(product, customer) {
