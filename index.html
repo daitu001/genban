@@ -892,6 +892,14 @@
         <!-- 功能网格 -->
         <div class="section-title">功能菜单</div>
         <div class="icon-grid">
+            <!-- 微信追击 -->
+            <div class="icon-item" onclick="showPage('pursuitPage')">
+                <div class="icon-circle" style="background:linear-gradient(135deg,#e74c3c,#c0392b)">
+                    <svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    <span class="badge">新</span>
+                </div>
+                <div class="icon-label">微信追击</div>
+            </div>
             <!-- 复版专项 -->
             <div class="icon-item" onclick="showPage('fubanPage')">
                 <div class="icon-circle pink">
@@ -1009,6 +1017,21 @@
     </div>
 
     <!-- 复版专项页面 -->
+    <!-- 微信追击页面 -->
+    <div id="pursuitPage" class="page">
+        <div class="back-header" onclick="showPage('mainPage')">
+            <div class="back-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                </svg>
+            </div>
+            <div class="page-title">微信追击</div>
+        </div>
+        <div class="page-content" style="padding:0;height:calc(100vh - 110px);overflow:hidden">
+            <iframe id="pursuitFrame" src="pursuit.html" style="width:100%;height:100%;border:none"></iframe>
+        </div>
+    </div>
+
     <div id="fubanPage" class="page">
         <div class="back-header" onclick="showPage('mainPage')">
             <div class="back-icon">
