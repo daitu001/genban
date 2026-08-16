@@ -4420,8 +4420,8 @@ custModalShow = function(name) {
                 return '<span style="font-size:11px;color:#2196f3;margin-left:8px">→ ' + last.next + '</span>';
             };
 
-            // 打开跟进详情弹窗
-            const tdShowFollowupDetail = (name) => {
+            // 打开跟进详情弹窗（全局函数，onclick 能调到）
+            window.tdShowFollowupDetail = function(name) {
                 const all = hdGetDone();
                 const rec = all[name];
                 if (!rec || !rec.history || !rec.history.length) { alert('暂无跟进记录'); return; }
