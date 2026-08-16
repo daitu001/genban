@@ -4397,7 +4397,12 @@ custModalShow = function(name) {
             const tdFollowLine = (name) => {
                 const last = hdGetLast(name);
                 if (!last) return '';
-                return '<span style="font-size:11px;color:#43a047;margin-left:8px">' + (last.who||'') + '·' + (last.date||'').slice(5) + '</span>';
+                let parts = [];
+                parts.push('<span style="color:#43a047">' + (last.who||'') + '·' + (last.date||'').slice(5) + '</span>');
+                if (last.text) parts.push('<span style="color:#333">聊了：' + last.text.slice(0,20) + (last.text.length>20?'…':'') + '</span>');
+                if (last.feedback) parts.push('<span style="color:#e65100">反馈：' + last.feedback.slice(0,20) + (last.feedback.length>20?'…':'') + '</span>');
+                if (last.next) parts.push('<span style="color:#2196f3">下一步：' + last.next.slice(0,20) + (last.next.length>20?'…':'') + '</span>');
+                return '<div style="font-size:11px;margin-top:2px;line-height:1.6">' + parts.join(' ') + '</div>';
             };
 
             // 下次跟进时间
@@ -4585,7 +4590,8 @@ custModalShow = function(name) {
                 const wayIcon = {'电话':'📞','微信':'💬','拜访':'🚶'}[last.way] || '💬';
                 document.getElementById('hdLastLabel').textContent = '📌 上次跟进（' + (last.date||'') + ' · ' + (last.who||'') + '）';
                 let html = wayIcon + last.way + '：' + (last.text||'');
-                if (last.next) html += '<br>→ 下一步：' + last.next;
+                if (last.feedback) html += '<br>💬 客户反馈：' + last.feedback;
+                if (last.next) html += '<br>📅 下一步：' + last.next;
                 document.getElementById('hdLastContent').innerHTML = html;
                 wrap.style.display = 'block';
             } else {
@@ -4593,6 +4599,7 @@ custModalShow = function(name) {
             }
             // 本次输入清空
             document.getElementById('hdText').value = '';
+            document.getElementById('hdFeedback').value = '';
             document.getElementById('hdNext').value = '';
             document.getElementById('hdContactName').value = '';
             document.getElementById('hdContactRole').value = '';
@@ -4616,6 +4623,7 @@ custModalShow = function(name) {
         function hdSubmit() {
             const v = document.getElementById('hdText').value.trim();
             if (!v) { alert('必填：聊了什么'); return; }
+            const feedback = document.getElementById('hdFeedback').value.trim();
             const next = document.getElementById('hdNext').value.trim();
             const today = new Date().toISOString().slice(0,10);
             const time = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'});
@@ -4623,7 +4631,7 @@ custModalShow = function(name) {
             const all = hdGetDone();
             if (!all[hdCurrent.name]) all[hdCurrent.name] = { history: [] };
             if (!all[hdCurrent.name].history) all[hdCurrent.name].history = [];
-            all[hdCurrent.name].history.push({ way: hdWay || '微信', text: v, next: next, date: today, time: time, who: who, contact_name: document.getElementById('hdContactName').value.trim(), contact_role: document.getElementById('hdContactRole').value });
+            all[hdCurrent.name].history.push({ way: hdWay || '微信', text: v, feedback: feedback, next: next, date: today, time: time, who: who, contact_name: document.getElementById('hdContactName').value.trim(), contact_role: document.getElementById('hdContactRole').value });
             // 标记今日已跟进（待办列表用）
             all[hdCurrent.name].lastDone = { date: today, time: time };
             localStorage.setItem(hdKey(), JSON.stringify(all));
@@ -4631,7 +4639,7 @@ custModalShow = function(name) {
             try {
                 var followupData = JSON.stringify({
                     type: 'followup', customer: hdCurrent.name,
-                    way: hdWay || '微信', text: v, next: next, date: today, time: time,
+                    way: hdWay || '微信', text: v, feedback: feedback, next: next, date: today, time: time,
                     who: who,
                     contact_name: document.getElementById('hdContactName').value.trim(),
                     contact_role: document.getElementById('hdContactRole').value,
@@ -4831,9 +4839,12 @@ custModalShow = function(name) {
             <!-- 聊了什么 -->
             <div style="font-size:11px;color:#888;margin-bottom:4px">聊了什么（必填）：</div>
             <textarea class="hd-textarea" id="hdText" style="min-height:70px" placeholder="例：问了秋冬新款需求，客户说…" oninput="hdCheckInput()"></textarea>
-            <!-- 客户反馈/下一步 -->
-            <div style="font-size:11px;color:#888;margin:10px 0 4px">客户反馈 / 下一步：</div>
-            <textarea class="hd-textarea" id="hdNext" style="min-height:60px" placeholder="例：下周三前给报价，再约看样…"></textarea>
+            <!-- 客户反馈 -->
+            <div style="font-size:11px;color:#888;margin:10px 0 4px">💬 客户反馈：</div>
+            <textarea class="hd-textarea" id="hdFeedback" style="min-height:50px" placeholder="例：客户说缺棉麻，想看新品…"></textarea>
+            <!-- 下一步 -->
+            <div style="font-size:11px;color:#888;margin:10px 0 4px">📅 下一步计划：</div>
+            <textarea class="hd-textarea" id="hdNext" style="min-height:50px" placeholder="例：下周三前给报价，再约看样…"></textarea>
             <div class="hd-btns">
                 <div class="hd-btn cancel" onclick="hdClose()">取消</div>
                 <div class="hd-btn ok disabled" id="hdOkBtn" onclick="hdSubmit()">✅ 确认完成</div>
