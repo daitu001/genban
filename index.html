@@ -2184,6 +2184,61 @@
                     console.log('团队跟进记录已加载:', Object.keys(TEAM_FOLLOWUP).length, '条');
                 }
                 
+                // 实时拉取团队跟进记录（从 SCF get_followup）
+                try {
+                    const currentRole = localStorage.getItem('current_salesperson') || '刘老师';
+                    const followupRes = await fetch(ACT_FC_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Token': ACT_PAGE_TOKEN },
+                        body: JSON.stringify({ 
+                            action: 'get_followup', 
+                            who: currentRole, 
+                            device_id: getDeviceId(),
+                            token: ACT_PAGE_TOKEN
+                        })
+                    });
+                    const followupData = await followupRes.json();
+                    if (followupData.ok && followupData.records) {
+                        // 合并到 TEAM_FOLLOWUP
+                        Object.keys(followupData.records).forEach(name => {
+                            const records = followupData.records[name];
+                            if (!TEAM_FOLLOWUP[name]) {
+                                TEAM_FOLLOWUP[name] = { history: [], lastDone: null };
+                            }
+                            // 转换格式并去重
+                            records.forEach(r => {
+                                const histItem = {
+                                    way: r.method || '微信',
+                                    text: r.content || '',
+                                    date: (r.time || '').slice(0, 10),
+                                    time: (r.time || '').slice(11, 16),
+                                    who: r.who || '',
+                                    contact_name: r.contact_name || '',
+                                    contact_role: r.contact_role || ''
+                                };
+                                // 检查是否已存在
+                                const exists = TEAM_FOLLOWUP[name].history.some(h => 
+                                    h.date === histItem.date && h.time === histItem.time && h.who === histItem.who
+                                );
+                                if (!exists) {
+                                    TEAM_FOLLOWUP[name].history.push(histItem);
+                                }
+                            });
+                            // 更新 lastDone
+                            if (records.length > 0) {
+                                const latest = records[records.length - 1];
+                                TEAM_FOLLOWUP[name].lastDone = {
+                                    date: (latest.time || '').slice(0, 10),
+                                    time: (latest.time || '').slice(11, 16)
+                                };
+                            }
+                        });
+                        console.log('SCF 团队跟进记录已加载:', Object.keys(followupData.records).length, '条');
+                    }
+                } catch (e) {
+                    console.warn('SCF 跟进记录加载失败:', e);
+                }
+                
                 // 按当前登录角色过滤客户数据（刘老师看全部）
                 const currentRole = localStorage.getItem('current_salesperson') || '刘老师';
                 if (currentRole !== '刘老师' && APP_DATA.groups) {
