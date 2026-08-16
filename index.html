@@ -1149,6 +1149,16 @@
         <div class="page-content" id="tdContent" style="padding:12px">
             <div style="text-align:center;padding:40px;color:#999">数据加载中...</div>
         </div>
+        <!-- 跟进详情弹窗 -->
+        <div id="tdFollowupDetailOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center" onclick="this.style.display='none'">
+            <div style="background:#fff;border-radius:16px;width:90%;max-width:400px;max-height:80vh;overflow:hidden" onclick="event.stopPropagation()">
+                <div style="padding:16px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+                    <div style="font-size:16px;font-weight:700" id="tdFollowupDetailName"></div>
+                    <div style="font-size:12px;color:#888;cursor:pointer" onclick="this.closest('#tdFollowupDetailOverlay').style.display='none'">✕ 关闭</div>
+                </div>
+                <div id="tdFollowupDetailContent" style="padding:16px"></div>
+            </div>
+        </div>
         <!-- 客户最后剪版/大货弹窗 -->
         <div class="td-overlay" id="tdOverlay" onclick="tdCloseDetail()">
             <div class="td-modal" onclick="event.stopPropagation()">
@@ -4397,12 +4407,7 @@ custModalShow = function(name) {
             const tdFollowLine = (name) => {
                 const last = hdGetLast(name);
                 if (!last) return '';
-                let parts = [];
-                parts.push('<span style="color:#43a047">' + (last.who||'') + '·' + (last.date||'').slice(5) + '</span>');
-                if (last.text) parts.push('<span style="color:#333">聊了：' + last.text.slice(0,20) + (last.text.length>20?'…':'') + '</span>');
-                if (last.feedback) parts.push('<span style="color:#e65100">反馈：' + last.feedback.slice(0,20) + (last.feedback.length>20?'…':'') + '</span>');
-                if (last.next) parts.push('<span style="color:#2196f3">下一步：' + last.next.slice(0,20) + (last.next.length>20?'…':'') + '</span>');
-                return '<div style="font-size:11px;margin-top:2px;line-height:1.6">' + parts.join(' ') + '</div>';
+                return '<span style="font-size:11px;color:#43a047;margin-left:8px">' + (last.who||'') + '·' + (last.date||'').slice(5) + '</span>';
             };
 
             // 下次跟进时间
@@ -4415,25 +4420,49 @@ custModalShow = function(name) {
                 return '<span style="font-size:11px;color:#2196f3;margin-left:8px">→ ' + last.next + '</span>';
             };
 
+            // 打开跟进详情弹窗
+            const tdShowFollowupDetail = (name) => {
+                const all = hdGetDone();
+                const rec = all[name];
+                if (!rec || !rec.history || !rec.history.length) { alert('暂无跟进记录'); return; }
+                let html = '<div style="max-height:60vh;overflow-y:auto">';
+                rec.history.forEach((h, i) => {
+                    html += '<div style="border-bottom:1px solid #eee;padding:12px 0">';
+                    html += '<div style="font-size:12px;color:#888;margin-bottom:6px">' + (h.date||'') + ' ' + (h.time||'') + ' · ' + (h.who||'') + ' · ' + (h.way||'微信') + '</div>';
+                    if (h.text) html += '<div style="font-size:13px;color:#333;margin-bottom:4px"><b>聊了什么：</b>' + h.text + '</div>';
+                    if (h.feedback) html += '<div style="font-size:13px;color:#e65100;margin-bottom:4px"><b>💬 客户反馈：</b>' + h.feedback + '</div>';
+                    if (h.next) html += '<div style="font-size:13px;color:#2196f3;margin-bottom:4px"><b>📅 下一步：</b>' + h.next + '</div>';
+                    if (h.contact_name) html += '<div style="font-size:11px;color:#999;margin-top:4px">联系人：' + h.contact_name + (h.contact_role ? '('+h.contact_role+')' : '') + '</div>';
+                    html += '</div>';
+                });
+                html += '</div>';
+                // 显示弹窗
+                const overlay = document.getElementById('tdFollowupDetailOverlay');
+                document.getElementById('tdFollowupDetailName').textContent = name;
+                document.getElementById('tdFollowupDetailContent').innerHTML = html;
+                overlay.style.display = 'flex';
+            };
+
             const renderItems = (arr, color, key) => {
                 const showN = tdExpanded[key] ? arr.length : Math.min(arr.length, 5);
                 let h = arr.slice(0, showN).map(x => {
                     // 天数显示
                     let daysText = x.followed ? '已跟进' : (x.days === 999 ? '从未' : x.days + '天');
                     let daysBg = x.followed ? '#4caf50' : (x.days === 999 ? '#ff9800' : '');
-                    // 跟进详情（上次跟进内容）
-                    const detailLine = tdFollowLine(x.n);
-                    // 下次跟进时间
-                    const nextLine = tdNextLine(x.n);
+                    // 跟进人信息
+                    const followLine = tdFollowLine(x.n);
+                    // 详情按钮（已跟进的才显示）
+                    const detailBtn = x.followed ? '<div class="td-handover-btn" style="background:#e3f2fd;color:#1976d2;border-color:#bbdefb" onclick="event.stopPropagation();event.preventDefault();tdShowFollowupDetail(\''+x.n.replace(/'/g,"\\'")+'\');return false;">详情</div>' : '';
                     
                     return '<div class="td-item" style="padding:10px 12px">' +
                         '<div style="flex:1;min-width:0;cursor:pointer" onclick="tdShowDetail(\''+x.n.replace(/'/g,"\\'")+'\')">' +
                         '<div style="display:flex;align-items:center">' +
                         '<div class="td-name" style="font-size:14px;font-weight:600">'+x.n+'</div>' +
-                        detailLine + nextLine +
+                        followLine +
                         '</div>' +
                         '</div>' +
                         '<div class="td-days '+(x.followed ? '' : color)+'" style="cursor:pointer;background:'+daysBg+';color:white;padding:4px 10px;border-radius:10px;font-size:11px;font-weight:600" onclick="tdShowDetail(\''+x.n.replace(/'/g,"\\'")+'\')">'+daysText+'</div>' +
+                        detailBtn +
                         '<div class="td-handover-btn" ontouchstart="event.stopPropagation()" onmousedown="event.stopPropagation()" onclick="event.stopPropagation();event.preventDefault();hdOpen(\''+x.n.replace(/'/g,"\\'")+'\', \''+x.reason.replace(/'/g,"\\'")+'\');return false;">跟进</div></div>';
                 }).join('');
                 if (arr.length > 5) {
