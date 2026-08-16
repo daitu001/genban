@@ -4377,16 +4377,18 @@ custModalShow = function(name) {
                     if (lastFollowup && lastFollowup.date) {
                         followupDays = daysSince(lastFollowup.date);
                     }
-                    // 从未跟进 或 超过阈值才显示
-                    if (followupDays === null || followupDays >= rule.sampleDays) {
-                        if (inHandoverProtect(c.company)) return null;
-                        const reason = followupDays === null ? '从未跟进' : followupDays + '天没跟进';
-                        const displayDays = followupDays === null ? 999 : followupDays;
-                        return { n: c.company, days: displayDays, reason: reason, amount: c.total_amount || 0, followed: followupDays !== null };
-                    }
-                    return null;
+                    // 所有客户都显示在列表里（不再过滤掉已跟进的）
+                    if (inHandoverProtect(c.company)) return null;
+                    const reason = followupDays === null ? '从未跟进' : (followupDays === 0 ? '今日已跟进' : followupDays + '天没跟进');
+                    const displayDays = followupDays === null ? 999 : followupDays;
+                    return { n: c.company, days: displayDays, reason: reason, amount: c.total_amount || 0, followed: followupDays !== null && followupDays === 0 };
                 }).filter(Boolean);
-                items.sort((a,b) => b.days - a.days || b.amount - a.amount);   // 最久没跟进的排前
+                // 排序：从未跟进的排最前，然后按天数降序，已跟进的排最后
+                items.sort((a,b) => {
+                    if (a.followed && !b.followed) return 1;
+                    if (!a.followed && b.followed) return -1;
+                    return b.days - a.days || b.amount - a.amount;
+                });
                 return { rule, items };
             });
 
