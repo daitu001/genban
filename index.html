@@ -4322,7 +4322,7 @@ custModalShow = function(name) {
             // 天数用“今天”实时算：时间每推进一天就+1（刘老师口径 2026-08-09）
             const groups = APP_DATA.groups || {};
             const today = new Date(); today.setHours(0,0,0,0);
-            const daysSince = ds => { if (!ds) return 999; return Math.floor((today - new Date(ds)) / DAY); };
+            const daysSince = ds => { if (!ds) return 999; const d = new Date(ds); d.setHours(12,0,0,0); return Math.max(0, Math.floor((today - d) / DAY)); };
 
             // 交接保护：交接后 <2天 隐藏；≥2天没新数据就回来（天数自然累计，含交接2天）
             const hdMap = hdGetDone();
