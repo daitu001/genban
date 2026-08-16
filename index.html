@@ -2178,6 +2178,12 @@
                 }
                 APP_DATA = await response.json();
                 
+                // 加载团队跟进记录（来自 reorder_data.json）
+                if (APP_DATA.followup_records) {
+                    TEAM_FOLLOWUP = APP_DATA.followup_records;
+                    console.log('团队跟进记录已加载:', Object.keys(TEAM_FOLLOWUP).length, '条');
+                }
+                
                 // 按当前登录角色过滤客户数据（刘老师看全部）
                 const currentRole = localStorage.getItem('current_salesperson') || '刘老师';
                 if (currentRole !== '刘老师' && APP_DATA.groups) {
@@ -4427,6 +4433,7 @@ custModalShow = function(name) {
         };
     
         /* ============ 客户跟进记录 ============ */
+        let TEAM_FOLLOWUP = {};   // 团队跟进记录（来自 reorder_data.json）
         let hdCurrent = null;
         let hdWay = '';   // 本次跟进方式
 
@@ -4434,7 +4441,37 @@ custModalShow = function(name) {
             return 'followup_persistent';   // 跟进记录持久存（断片记忆数据源）
         }
         function hdGetDone() {
-            try { return JSON.parse(localStorage.getItem(hdKey()) || '{}'); } catch(e) { return {}; }
+            let local = {};
+            try { local = JSON.parse(localStorage.getItem(hdKey()) || '{}'); } catch(e) {}
+            // 合并团队记录（云端 + 本地，云端优先）
+            const merged = { ...local };
+            Object.keys(TEAM_FOLLOWUP).forEach(name => {
+                const cloudRec = TEAM_FOLLOWUP[name];
+                if (!merged[name]) {
+                    merged[name] = cloudRec;
+                } else {
+                    // 合并 history，去重（按 date+time+who）
+                    const localHist = merged[name].history || [];
+                    const cloudHist = cloudRec.history || [];
+                    const existKeys = new Set(localHist.map(h => (h.date||'') + (h.time||'') + (h.who||'')));
+                    cloudHist.forEach(h => {
+                        const key = (h.date||'') + (h.time||'') + (h.who||'');
+                        if (!existKeys.has(key)) {
+                            localHist.push(h);
+                            existKeys.add(key);
+                        }
+                    });
+                    localHist.sort((a, b) => ((a.date||'') + (a.time||'')).localeCompare((b.date||'') + (b.time||'')));
+                    merged[name].history = localHist;
+                    // lastDone 取最新的
+                    const cloudLast = (cloudRec.lastDone?.date||'') + (cloudRec.lastDone?.time||'');
+                    const localLast = (merged[name].lastDone?.date||'') + (merged[name].lastDone?.time||'');
+                    if (cloudRec.lastDone && cloudLast > localLast) {
+                        merged[name].lastDone = cloudRec.lastDone;
+                    }
+                }
+            });
+            return merged;
         }
         // 取该客户最近一次跟进记录（断片记忆）
         function hdGetLast(name) {
