@@ -4373,15 +4373,16 @@ custModalShow = function(name) {
                 const items = (groups[rule.key] || []).map(c => {
                     // 从上次跟进开始算几天没跟进了
                     const lastFollowup = hdGetLast(c.company);
-                    let followupDays = 999; // 从未跟进
+                    let followupDays = null; // null=从未跟进
                     if (lastFollowup && lastFollowup.date) {
                         followupDays = daysSince(lastFollowup.date);
                     }
-                    // 如果超过阈值，显示"X天没跟进"
-                    if (followupDays >= rule.sampleDays || followupDays === 999) {
+                    // 从未跟进 或 超过阈值才显示
+                    if (followupDays === null || followupDays >= rule.sampleDays) {
                         if (inHandoverProtect(c.company)) return null;
-                        const reason = followupDays === 999 ? '从未跟进' : followupDays + '天没跟进';
-                        return { n: c.company, days: followupDays, reason: reason, amount: c.total_amount || 0 };
+                        const reason = followupDays === null ? '从未跟进' : followupDays + '天没跟进';
+                        const displayDays = followupDays === null ? 999 : followupDays;
+                        return { n: c.company, days: displayDays, reason: reason, amount: c.total_amount || 0, followed: followupDays !== null };
                     }
                     return null;
                 }).filter(Boolean);
@@ -4394,19 +4395,40 @@ custModalShow = function(name) {
             const tdFollowLine = (name) => {
                 const last = hdGetLast(name);
                 if (!last) return '';
-                return '<div style="font-size:11px;color:#43a047;margin-top:2px">' + (last.who||'') + (last.contact_role ? '·'+last.contact_role : '') + (last.contact_name ? '·'+last.contact_name : '') + '·' + (last.date||'').slice(5) + '</div>';
+                return '<span style="font-size:11px;color:#43a047;margin-left:8px">' + (last.who||'') + '·' + (last.date||'').slice(5) + '</span>';
+            };
+
+            // 下次跟进时间
+            const tdNextLine = (name) => {
+                const all = hdGetDone();
+                const rec = all[name];
+                if (!rec || !rec.history || !rec.history.length) return '';
+                const last = rec.history[rec.history.length - 1];
+                if (!last.next) return '';
+                return '<span style="font-size:11px;color:#2196f3;margin-left:8px">→ ' + last.next + '</span>';
             };
 
             const renderItems = (arr, color, key) => {
                 const showN = tdExpanded[key] ? arr.length : Math.min(arr.length, 5);
-                let h = arr.slice(0, showN).map(x =>
-                    '<div class="td-item">' +
-                    '<div style="flex:1;min-width:0;cursor:pointer" onclick="tdShowDetail(\''+x.n.replace(/'/g,"\\'")+'\')">' +
-                    '<div class="td-name">'+x.n+'</div>' +
-                    '<div class="td-reason">'+x.reason+'</div>' + tdFollowLine(x.n) + '</div>' +
-                    '<div class="td-days '+color+'" style="cursor:pointer" onclick="tdShowDetail(\''+x.n.replace(/'/g,"\\'")+'\')">'+x.days+'天</div>' +
-                    '<div class="td-handover-btn" ontouchstart="event.stopPropagation()" onmousedown="event.stopPropagation()" onclick="event.stopPropagation();event.preventDefault();hdOpen(\''+x.n.replace(/'/g,"\\'")+'\', \''+x.reason.replace(/'/g,"\\'")+'\');return false;">跟进</div></div>'
-                ).join('');
+                let h = arr.slice(0, showN).map(x => {
+                    // 天数显示
+                    let daysText = x.followed ? '已跟进' : (x.days === 999 ? '从未' : x.days + '天');
+                    let daysBg = x.followed ? '#4caf50' : (x.days === 999 ? '#ff9800' : '');
+                    // 跟进详情（上次跟进内容）
+                    const detailLine = tdFollowLine(x.n);
+                    // 下次跟进时间
+                    const nextLine = tdNextLine(x.n);
+                    
+                    return '<div class="td-item" style="padding:10px 12px">' +
+                        '<div style="flex:1;min-width:0;cursor:pointer" onclick="tdShowDetail(\''+x.n.replace(/'/g,"\\'")+'\')">' +
+                        '<div style="display:flex;align-items:center">' +
+                        '<div class="td-name" style="font-size:14px;font-weight:600">'+x.n+'</div>' +
+                        detailLine + nextLine +
+                        '</div>' +
+                        '</div>' +
+                        '<div class="td-days '+(x.followed ? '' : color)+'" style="cursor:pointer;background:'+daysBg+';color:white;padding:4px 10px;border-radius:10px;font-size:11px;font-weight:600" onclick="tdShowDetail(\''+x.n.replace(/'/g,"\\'")+'\')">'+daysText+'</div>' +
+                        '<div class="td-handover-btn" ontouchstart="event.stopPropagation()" onmousedown="event.stopPropagation()" onclick="event.stopPropagation();event.preventDefault();hdOpen(\''+x.n.replace(/'/g,"\\'")+'\', \''+x.reason.replace(/'/g,"\\'")+'\');return false;">跟进</div></div>';
+                }).join('');
                 if (arr.length > 5) {
                     h += '<div class="td-more" onclick="tdToggle(\''+key+'\')">' +
                         (tdExpanded[key] ? '收起 ▲' : '展开全部 '+arr.length+' 条 ▼') + '</div>';
