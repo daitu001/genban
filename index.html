@@ -4371,17 +4371,21 @@ custModalShow = function(name) {
 
             const gradeBuckets = GRADE_RULES.map(rule => {
                 const items = (groups[rule.key] || []).map(c => {
-                    const ds = daysSince(c.last_sample_date);   // 999=从未剪样
-                    const dc = daysSince(c.last_cargo_date);
-                    const reasons = [];
-                    let maxDays = 0;
-                    if (ds < 900 && ds >= rule.sampleDays) { reasons.push(ds + '天没剪样'); maxDays = Math.max(maxDays, ds); }
-                    if (dc < 900 && dc >= rule.cargoDays)  { reasons.push(dc + '天没下大货'); maxDays = Math.max(maxDays, dc); }
-                    if (!reasons.length) return null;
-                    if (inHandoverProtect(c.company)) return null;   // 交接保护期内不显示
-                    return { n: c.company, days: maxDays, reason: reasons.join(' · '), amount: c.total_amount || 0 };
+                    // 从上次跟进开始算几天没跟进了
+                    const lastFollowup = hdGetLast(c.company);
+                    let followupDays = 999; // 从未跟进
+                    if (lastFollowup && lastFollowup.date) {
+                        followupDays = daysSince(lastFollowup.date);
+                    }
+                    // 如果超过阈值，显示"X天没跟进"
+                    if (followupDays >= rule.sampleDays || followupDays === 999) {
+                        if (inHandoverProtect(c.company)) return null;
+                        const reason = followupDays === 999 ? '从未跟进' : followupDays + '天没跟进';
+                        return { n: c.company, days: followupDays, reason: reason, amount: c.total_amount || 0 };
+                    }
+                    return null;
                 }).filter(Boolean);
-                items.sort((a,b) => b.days - a.days || b.amount - a.amount);   // 最久没动的排前
+                items.sort((a,b) => b.days - a.days || b.amount - a.amount);   // 最久没跟进的排前
                 return { rule, items };
             });
 
