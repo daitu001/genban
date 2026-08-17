@@ -4663,6 +4663,8 @@ custModalShow = function(name) {
             } else {
                 wrap.style.display = 'none';
             }
+            // 团队跟进记录
+            renderTeamRecords(name);
             // 本次输入清空
             document.getElementById('hdText').value = '';
             document.getElementById('hdFeedback').value = '';
@@ -4672,6 +4674,52 @@ custModalShow = function(name) {
             document.querySelectorAll('#hdWayRow .hd-way').forEach(el => el.classList.remove('active'));
             hdCheckInput();
             document.getElementById('hdOverlay').classList.add('show');
+        }
+        function renderTeamRecords(customerName, filterWho) {
+            var all = hdGetDone();
+            var rec = all[customerName];
+            var teamWrap = document.getElementById('hdTeamWrap');
+            var namesDiv = document.getElementById('hdTeamNames');
+            var recordsDiv = document.getElementById('hdTeamRecords');
+            if (!rec || !rec.history || !rec.history.length) {
+                teamWrap.style.display = 'none';
+                return;
+            }
+            teamWrap.style.display = 'block';
+            // 收集所有跟进人
+            var whoSet = {};
+            rec.history.forEach(function(h) { if (h.who) whoSet[h.who] = true; });
+            var whos = Object.keys(whoSet).sort();
+            // 人名按钮组
+            var btns = '<span onclick="renderTeamRecords(\'' + customerName.replace(/'/g, "\\'") + '\', null)" style="padding:4px 10px;border-radius:12px;font-size:12px;cursor:pointer;border:1px solid ' + (!filterWho ? '#1976d2' : '#ddd') + ';color:' + (!filterWho ? '#1976d2' : '#666') + ';background:' + (!filterWho ? '#e3f2fd' : '#fff') + '">全部</span>';
+            whos.forEach(function(w) {
+                var active = (filterWho === w);
+                btns += '<span onclick="renderTeamRecords(\'' + customerName.replace(/'/g, "\\'") + '\', \'' + w.replace(/'/g, "\\'") + '\')" style="padding:4px 10px;border-radius:12px;font-size:12px;cursor:pointer;border:1px solid ' + (active ? '#1976d2' : '#ddd') + ';color:' + (active ? '#1976d2' : '#666') + ';background:' + (active ? '#e3f2fd' : '#fff') + '">' + w + '</span>';
+            });
+            namesDiv.innerHTML = btns;
+            // 过滤并渲染记录
+            var items = rec.history.slice().sort(function(a, b) { return ((b.date||'')+(b.time||'')).localeCompare((a.date||'')+(a.time||'')); });
+            if (filterWho) {
+                items = items.filter(function(h) { return h.who === filterWho; });
+            }
+            if (!items.length) {
+                recordsDiv.innerHTML = '<div style="text-align:center;color:#999;font-size:12px;padding:10px">暂无记录</div>';
+                return;
+            }
+            var html = '';
+            items.forEach(function(h) {
+                var wayIcon = {'电话':'📞','微信':'💬','拜访':'🚶'}[h.way] || '💬';
+                html += '<div style="border-bottom:1px solid #eee;padding:8px 0">';
+                html += '<div style="font-size:11px;color:#888;margin-bottom:4px">' + (h.date||'') + ' ' + (h.time||'') + ' · <b>' + (h.who||'') + '</b> · ' + wayIcon + (h.way||'微信') + '</div>';
+                if (h.text) html += '<div style="font-size:12px;color:#333">' + h.text + '</div>';
+                if (h.feedback) {
+                    var contactLabel = h.contact_name ? (h.contact_name + (h.contact_role ? '('+h.contact_role+')' : '') + '反馈') : '客户反馈';
+                    html += '<div style="font-size:12px;color:#e65100;margin-top:2px">💬 ' + contactLabel + '：' + h.feedback + '</div>';
+                }
+                if (h.next) html += '<div style="font-size:12px;color:#2196f3;margin-top:2px">📅 下一步：' + h.next + '</div>';
+                html += '</div>';
+            });
+            recordsDiv.innerHTML = html;
         }
         function hdClose() {
             document.getElementById('hdOverlay').classList.remove('show');
@@ -4894,6 +4942,12 @@ custModalShow = function(name) {
             <div id="hdLastWrap" style="display:none">
                 <div style="font-size:11px;color:#888;margin-bottom:4px" id="hdLastLabel">📌 上次跟进</div>
                 <div style="background:#fff8e6;border:1px solid #ffe0a3;border-radius:12px;padding:10px 12px;font-size:12px;color:#7a5c00;line-height:1.6" id="hdLastContent"></div>
+            </div>
+            <!-- 团队跟进记录 -->
+            <div id="hdTeamWrap" style="display:none">
+                <div style="font-size:11px;color:#888;margin:12px 0 6px">👥 团队跟进记录</div>
+                <div id="hdTeamNames" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap"></div>
+                <div id="hdTeamRecords" style="max-height:200px;overflow-y:auto;background:#f8f9fb;border-radius:10px;padding:10px"></div>
             </div>
             <!-- 本次跟进方式 -->
             <div style="font-size:11px;color:#888;margin:12px 0 6px">本次跟进：</div>
