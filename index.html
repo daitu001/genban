@@ -2716,7 +2716,10 @@
                     <div class="customer-item" onclick="showTimeline('${c.customer}')">
                         <div class="customer-header">
                             <span class="customer-name">${c.customer}${followUpTag}</span>
-                            ${statusTag}
+                            <div style="display:flex;align-items:center;gap:6px">
+                                ${statusTag}
+                                <button onclick="event.stopPropagation();hdOpen('${c.customer.replace(/'/g, "\\'")}','复版跟进')" style="padding:4px 10px;border:1.5px solid #1976d2;border-radius:14px;background:#fff;color:#1976d2;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">+ 辅助跟进</button>
+                            </div>
                         </div>
                         <div class="customer-date">复样${c.reorder_times}次 · 共${c.order_count}次开单 · 最近:${c.latest_date ? c.latest_date.slice(5) : '-'}</div>
                         ${repTags ? '<div style="margin-top:4px">'+repTags+'</div>' : ''}
@@ -4458,7 +4461,10 @@ custModalShow = function(name) {
                     html += '<div style="border-bottom:1px solid #eee;padding:12px 0">';
                     html += '<div style="font-size:12px;color:#888;margin-bottom:6px">' + (h.date||'') + ' ' + (h.time||'') + ' · ' + (h.who||'') + ' · ' + (h.way||'微信') + '</div>';
                     if (h.text) html += '<div style="font-size:13px;color:#333;margin-bottom:4px"><b>聊了什么：</b>' + h.text + '</div>';
-                    if (h.feedback) html += '<div style="font-size:13px;color:#e65100;margin-bottom:4px"><b>💬 客户反馈：</b>' + h.feedback + '</div>';
+                    if (h.feedback) {
+                        const contactLabel = h.contact_name ? (h.contact_name + (h.contact_role ? '('+h.contact_role+')' : '') + '反馈') : '客户反馈';
+                        html += '<div style="font-size:13px;color:#e65100;margin-bottom:4px"><b>💬 ' + contactLabel + '：</b>' + h.feedback + '</div>';
+                    }
                     if (h.next) html += '<div style="font-size:13px;color:#2196f3;margin-bottom:4px"><b>📅 下一步：</b>' + h.next + '</div>';
                     if (h.contact_name) html += '<div style="font-size:11px;color:#999;margin-top:4px">联系人：' + h.contact_name + (h.contact_role ? '('+h.contact_role+')' : '') + '</div>';
                     html += '</div>';
@@ -4647,7 +4653,10 @@ custModalShow = function(name) {
                 const wayIcon = {'电话':'📞','微信':'💬','拜访':'🚶'}[last.way] || '💬';
                 document.getElementById('hdLastLabel').textContent = '📌 上次跟进（' + (last.date||'') + ' · ' + (last.who||'') + '）';
                 let html = wayIcon + last.way + '：' + (last.text||'');
-                if (last.feedback) html += '<br>💬 客户反馈：' + last.feedback;
+                if (last.feedback) {
+                    const contactLabel = last.contact_name ? (last.contact_name + (last.contact_role ? '('+last.contact_role+')' : '') + '反馈') : '客户反馈';
+                    html += '<br>💬 ' + contactLabel + '：' + last.feedback;
+                }
                 if (last.next) html += '<br>📅 下一步：' + last.next;
                 document.getElementById('hdLastContent').innerHTML = html;
                 wrap.style.display = 'block';
@@ -4667,6 +4676,17 @@ custModalShow = function(name) {
         function hdClose() {
             document.getElementById('hdOverlay').classList.remove('show');
             hdCurrent = null;
+        }
+        function updateFeedbackLabel() {
+            const name = document.getElementById('hdContactName').value.trim();
+            const role = document.getElementById('hdContactRole').value;
+            const label = document.getElementById('feedbackLabel');
+            if (name) {
+                const roleText = role ? '(' + role + ')' : '';
+                label.textContent = '💬 ' + name + roleText + '反馈：';
+            } else {
+                label.textContent = '💬 客户反馈：';
+            }
         }
         function hdPickWay(el) {
             document.querySelectorAll('#hdWayRow .hd-way').forEach(e => e.classList.remove('active'));
@@ -4884,8 +4904,8 @@ custModalShow = function(name) {
             </div>
             <!-- 联系人姓名+角色 -->
             <div style="display:flex;gap:8px;margin-bottom:10px">
-                <input id="hdContactName" placeholder="联系人姓名" style="flex:1;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;box-sizing:border-box">
-                <select id="hdContactRole" style="width:110px;padding:10px 8px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;box-sizing:border-box;background:#fff">
+                <input id="hdContactName" placeholder="联系人姓名" oninput="updateFeedbackLabel()" style="flex:1;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;box-sizing:border-box">
+                <select id="hdContactRole" onchange="updateFeedbackLabel()" style="width:110px;padding:10px 8px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;outline:none;box-sizing:border-box;background:#fff">
                     <option value="">角色</option>
                     <option value="主事">主事</option>
                     <option value="设计师">设计师</option>
@@ -4897,7 +4917,7 @@ custModalShow = function(name) {
             <div style="font-size:11px;color:#888;margin-bottom:4px">聊了什么（必填）：</div>
             <textarea class="hd-textarea" id="hdText" style="min-height:70px" placeholder="例：问了秋冬新款需求，客户说…" oninput="hdCheckInput()"></textarea>
             <!-- 客户反馈 -->
-            <div style="font-size:11px;color:#888;margin:10px 0 4px">💬 客户反馈：</div>
+            <div style="font-size:11px;color:#888;margin:10px 0 4px" id="feedbackLabel">💬 客户反馈：</div>
             <textarea class="hd-textarea" id="hdFeedback" style="min-height:50px" placeholder="例：客户说缺棉麻，想看新品…"></textarea>
             <!-- 下一步 -->
             <div style="font-size:11px;color:#888;margin:10px 0 4px">📅 下一步计划：</div>
