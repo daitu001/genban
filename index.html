@@ -2685,6 +2685,17 @@
                     followUpTag = `<span style="color:#28a745;font-size:12px;margin-left:8px;">✓已跟进 ${followUpDate}</span>`;
                 }
 
+                // 团队跟进记录数
+                let teamRecordTag = '';
+                const teamData = hdGetDone();
+                const teamRec = teamData[c.customer];
+                if (teamRec && teamRec.history && teamRec.history.length > 0) {
+                    const whoSet = {};
+                    teamRec.history.forEach(h => { if (h.who) whoSet[h.who] = true; });
+                    const whoCount = Object.keys(whoSet).length;
+                    teamRecordTag = `<span style="font-size:11px;color:#667eea;margin-left:6px;background:#e8eaf6;padding:2px 6px;border-radius:8px">👥 ${teamRec.history.length}条${whoCount > 1 ? ' · ' + whoCount + '人' : ''}</span>`;
+                }
+
                 let noteHtml = '';
                 if (note) {
                     noteHtml = `<div style="font-size:12px;color:#666;margin-top:4px;padding:6px;background:#f8f9fb;border-radius:4px;">💬 ${note}</div>`;
@@ -2715,7 +2726,7 @@
                 return `
                     <div class="customer-item" onclick="showTimeline('${c.customer}')">
                         <div class="customer-header">
-                            <span class="customer-name">${c.customer}${followUpTag}</span>
+                            <span class="customer-name">${c.customer}${followUpTag}${teamRecordTag}</span>
                             <div style="display:flex;align-items:center;gap:6px">
                                 ${statusTag}
                                 <button onclick="event.stopPropagation();hdOpen('${c.customer.replace(/'/g, "\\'")}','复版跟进')" style="padding:4px 10px;border:1.5px solid #1976d2;border-radius:14px;background:#fff;color:#1976d2;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">+ 辅助跟进</button>
@@ -4686,6 +4697,9 @@ custModalShow = function(name) {
                 return;
             }
             teamWrap.style.display = 'block';
+            var currentWho = localStorage.getItem('current_salesperson') || '';
+            // 如果没指定filterWho，默认用当前登录角色
+            if (filterWho === undefined) filterWho = currentWho;
             // 收集所有跟进人
             var whoSet = {};
             rec.history.forEach(function(h) { if (h.who) whoSet[h.who] = true; });
@@ -4697,19 +4711,19 @@ custModalShow = function(name) {
                 btns += '<span onclick="renderTeamRecords(\'' + customerName.replace(/'/g, "\\'") + '\', \'' + w.replace(/'/g, "\\'") + '\')" style="padding:4px 10px;border-radius:12px;font-size:12px;cursor:pointer;border:1px solid ' + (active ? '#1976d2' : '#ddd') + ';color:' + (active ? '#1976d2' : '#666') + ';background:' + (active ? '#e3f2fd' : '#fff') + '">' + w + '</span>';
             });
             namesDiv.innerHTML = btns;
-            // 过滤并渲染记录
-            var items = rec.history.slice().sort(function(a, b) { return ((b.date||'')+(b.time||'')).localeCompare((a.date||'')+(a.time||'')); });
-            if (filterWho) {
-                items = items.filter(function(h) { return h.who === filterWho; });
-            }
-            if (!items.length) {
+            // 所有记录按时间倒序
+            var allItems = rec.history.slice().sort(function(a, b) { return ((b.date||'')+(b.time||'')).localeCompare((a.date||'')+(a.time||'')); });
+            // 当前角色的记录
+            var myItems = filterWho ? allItems.filter(function(h) { return h.who === filterWho; }) : allItems;
+            // 其他人的记录
+            var otherItems = filterWho ? allItems.filter(function(h) { return h.who !== filterWho; }) : [];
+            if (!myItems.length && !otherItems.length) {
                 recordsDiv.innerHTML = '<div style="text-align:center;color:#999;font-size:12px;padding:10px">暂无记录</div>';
                 return;
             }
-            var html = '';
-            items.forEach(function(h) {
+            var renderOne = function(h) {
                 var wayIcon = {'电话':'📞','微信':'💬','拜访':'🚶'}[h.way] || '💬';
-                html += '<div style="border-bottom:1px solid #eee;padding:8px 0">';
+                var html = '<div style="border-bottom:1px solid #eee;padding:8px 0">';
                 html += '<div style="font-size:11px;color:#888;margin-bottom:4px">' + (h.date||'') + ' ' + (h.time||'') + ' · <b>' + (h.who||'') + '</b> · ' + wayIcon + (h.way||'微信') + '</div>';
                 if (h.text) html += '<div style="font-size:12px;color:#333">' + h.text + '</div>';
                 if (h.feedback) {
@@ -4718,7 +4732,18 @@ custModalShow = function(name) {
                 }
                 if (h.next) html += '<div style="font-size:12px;color:#2196f3;margin-top:2px">📅 下一步：' + h.next + '</div>';
                 html += '</div>';
-            });
+                return html;
+            };
+            var html = '';
+            myItems.forEach(function(h) { html += renderOne(h); });
+            // 其他人的记录折叠
+            if (otherItems.length) {
+                var foldId = 'teamFold_' + customerName.replace(/[^a-zA-Z0-9]/g, '_');
+                html += '<div id="' + foldId + '_btn" onclick="var e=document.getElementById(\'' + foldId + '\');var b=this;var show=e.style.display===\'none\';e.style.display=show?\'block\':\'none\';b.textContent=show?\'▾ 展开其他人记录(' + otherItems.length + '条)\':\'▸ 收起其他人记录\';" style="padding:8px;text-align:center;color:#667eea;font-size:12px;cursor:pointer;background:#f0f2ff;border-radius:8px;margin:4px 0">▸ 收起其他人记录</div>';
+                html += '<div id="' + foldId + '" style="display:none">';
+                otherItems.forEach(function(h) { html += renderOne(h); });
+                html += '</div>';
+            }
             recordsDiv.innerHTML = html;
         }
         function hdClose() {
