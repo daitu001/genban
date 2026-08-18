@@ -1010,6 +1010,17 @@
                 </div>
                 <div class="icon-label">业务员</div>
             </div>
+
+            <!-- 经典语录 -->
+            <div class="icon-item" onclick="showPage('quotesPage')">
+                <div class="icon-circle" style="background:linear-gradient(135deg,#f7971e,#ffd200)">
+                    <svg viewBox="0 0 24 24" fill="white">
+                        <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/>
+                    </svg>
+                    <span class="badge">新</span>
+                </div>
+                <div class="icon-label">经典语录</div>
+            </div>
         </div>
 
         <!-- 维护客户技巧（主页） -->
@@ -1446,6 +1457,23 @@
                 <!-- 每日销售经验 -->
                 <div id="dailyTipsSection" style="margin-top:24px"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- 经典语录页面 -->
+    <div id="quotesPage" class="page">
+        <div class="back-header" onclick="showPage('mainPage')">
+            <div class="back-icon">
+                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            </div>
+            <div class="page-title">💬 经典语录</div>
+        </div>
+        <div class="page-content">
+            <div style="text-align:center;padding:8px 0 16px;font-size:13px;color:#999">来自小红书博主「我要暴富」· 纺织面料销售实战</div>
+            <!-- 分类 tab -->
+            <div id="quotesCategoryTabs" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
+            <!-- 语录列表 -->
+            <div id="quotesList"></div>
         </div>
     </div>
 
@@ -5007,6 +5035,69 @@ custModalShow = function(name) {
             </div>
         </div>
     </div>
+
+<script>
+// ==================== 经典语录 ====================
+let QUOTES_DATA = null;
+let QUOTES_ACTIVE_CAT = 'all';
+
+async function loadQuotes() {
+    if (QUOTES_DATA) { renderQuotes(); return; }
+    try {
+        // 优先 OSS，fallback 本地
+        let r = await fetch('https://youyi-01mishu.oss-cn-guangzhou.aliyuncs.com/genban/data/sales_quotes.json?t=' + Date.now());
+        if (!r.ok) r = await fetch('./data/sales_quotes.json?t=' + Date.now());
+        QUOTES_DATA = await r.json();
+        renderQuotes();
+    } catch(e) {
+        document.getElementById('quotesList').innerHTML = '<div style="text-align:center;padding:40px;color:#999">加载失败，请检查网络</div>';
+    }
+}
+
+function renderQuotes() {
+    if (!QUOTES_DATA) return;
+    const cats = QUOTES_DATA.categories;
+    // 渲染分类 tab
+    let tabsHtml = '<div onclick="quotesSwitchCat(\'all\')" style="padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;' + (QUOTES_ACTIVE_CAT==='all'?'background:#667eea;color:#fff':'background:#f0f0f0;color:#666') + '">📖 全部</div>';
+    cats.forEach(c => {
+        const active = QUOTES_ACTIVE_CAT === c.id;
+        tabsHtml += '<div onclick="quotesSwitchCat(\'' + c.id + '\')" style="padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;' + (active?'background:#667eea;color:#fff':'background:#f0f0f0;color:#666') + '">' + c.icon + ' ' + c.name + '</div>';
+    });
+    document.getElementById('quotesCategoryTabs').innerHTML = tabsHtml;
+
+    // 渲染语录列表
+    let listHtml = '';
+    cats.forEach(c => {
+        if (QUOTES_ACTIVE_CAT !== 'all' && QUOTES_ACTIVE_CAT !== c.id) return;
+        listHtml += '<div style="margin-bottom:20px">';
+        listHtml += '<div style="font-size:15px;font-weight:700;color:#333;margin-bottom:4px">' + c.icon + ' ' + c.name + '</div>';
+        listHtml += '<div style="font-size:12px;color:#999;margin-bottom:12px">' + c.desc + '</div>';
+        c.quotes.forEach((q, i) => {
+            listHtml += '<div style="background:#fff;border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">';
+            listHtml += '<div style="font-size:12px;color:#667eea;font-weight:600;margin-bottom:8px">📍 ' + q.scene + '</div>';
+            listHtml += '<div style="font-size:14px;color:#333;line-height:1.7;background:#f8f9ff;border-radius:10px;padding:12px;border-left:3px solid #667eea">' + q.text + '</div>';
+            listHtml += '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">';
+            q.tags.forEach(t => {
+                listHtml += '<span style="font-size:11px;background:#eef2ff;color:#667eea;padding:2px 8px;border-radius:10px">#' + t + '</span>';
+            });
+            listHtml += '</div></div>';
+        });
+        listHtml += '</div>';
+    });
+    document.getElementById('quotesList').innerHTML = listHtml;
+}
+
+function quotesSwitchCat(catId) {
+    QUOTES_ACTIVE_CAT = catId;
+    renderQuotes();
+}
+
+// 进入语录页面时加载
+document.addEventListener('click', function(e) {
+    const item = e.target.closest('[onclick*="quotesPage"]');
+    if (item) setTimeout(loadQuotes, 100);
+});
+</script>
 
 <script src="https://imgcache.qq.com/qcloud/cloudbase-js-sdk/1.7.1/cloudbase.full.js"></script>
 <script src="./cloud.js"></script>
