@@ -373,8 +373,13 @@ function syncFollowupsFromOSS() {
                 if (log.action !== 'note' || !log.detail) return;
                 try {
                     var rec = JSON.parse(log.detail);
-                    // 业务组隔离：只拉取同组成员的记录（null=管理员可见全部）
-                    if (members && members.indexOf(rec.who) < 0) return;
+                    // 复版专项跟进标记：全团队共享，不做业务组隔离
+                    if (rec.type === 'followup_mark') {
+                        // 跳过业务组过滤，直接处理
+                    } else if (members && members.indexOf(rec.who) < 0) {
+                        // 业务组隔离：只拉取同组成员的记录（null=管理员可见全部）
+                        return;
+                    }
                     // 类型1：跟进记录（hdSubmit 弹窗）
                     if (rec.type === 'followup' && rec.customer) {
                         var name = rec.customer;
@@ -403,11 +408,11 @@ function syncFollowupsFromOSS() {
                             all[name].lastDone = { date: rec.date, time: rec.time };
                         }
                     }
-                    // 类型2：复版专项跟进标记（saveFollowUp）
+                    // 类型2：复版专项跟进标记（saveFollowUp）—— 不按业务组隔离，全团队共享
                     if (rec.type === 'followup_mark' && rec.product && rec.customer) {
                         var k = 'followup_' + rec.product + '_' + rec.customer;
                         var kd = 'followup_date_' + rec.product + '_' + rec.customer;
-                        // 只同步“已跟进”标记（取消标记只本地生效，避免误删）
+                        // 只同步"已跟进"标记（取消标记只本地生效，避免误删）
                         if (rec.followed === '1' && localStorage.getItem(k) !== '1') {
                             localStorage.setItem(k, '1');
                             if (rec.date) localStorage.setItem(kd, rec.date + (rec.time ? ' ' + rec.time : '') + (rec.who ? ' ' + rec.who : ''));
